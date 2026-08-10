@@ -1,0 +1,892 @@
+// SitePilot AI — PostgreSQL schema
+//
+// Design notes
+// - `User.id` mirrors the Supabase `auth.users` UUID so the app database and the
+//   auth provider stay in lockstep without a join table.
+// - Audits are append-only: every run creates a new `Audit` row plus one row per
+//   category result. Nothing is mutated in place, which makes history, trend
+//   charts and competitor diffing pure reads.
+// - Scores are stored as 0-100 integers everywhere so cross-category comparison,
+//   averaging and charting never needs unit conversion.
+// - Forward-compatible: monitoring, keyword tracking and team collaboration all
+//   hang off Organization/Project without reshaping existing tables.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Plan {
+  FREE
+  PRO
+  AGENCY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  UNPAID
+  PAUSED
+}
+
+enum AuditStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum AuditCategory {
+  SEO
+  PERFORMANCE
+  ACCESSIBILITY
+  UX
+  DESIGN
+  CONTENT
+  SECURITY
+  TECHNICAL
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum RecommendationKind {
+  QUICK_WIN
+  LONG_TERM
+}
+
+enum RecommendationStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  DISMISSED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum DeviceStrategy {
+  MOBILE
+  DESKTOP
+}
+
+enum ScreenshotKind {
+  DESKTOP_VIEWPORT
+  DESKTOP_FULL
+  MOBILE_VIEWPORT
+  MOBILE_FULL
+}
+
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+// ---------------------------------------------------------------------------
+// Identity & tenancy
+// ---------------------------------------------------------------------------
+
+/// Mirrors a Supabase auth user. `id` is the Supabase UUID.
+model User {
+  id            String    @id @db.Uuid
+  email         String    @unique
+  name          String?
+  avatarUrl     String?
+  emailVerified DateTime?
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastSeenAt DateTime?
+
+  settings      UserSettings?
+  memberships   OrganizationMember[]
+  ownedOrgs     Organization[]       @relation("OrganizationOwner")
+  audits        Audit[]
+  chatSessions  ChatSession[]
+  notifications Notification[]
+  apiKeys       ApiKey[]
+
+  @@index([createdAt])
+  @@map("users")
+}
+
+model UserSettings {
+  id     String @id @default(cuid())
+  userId String @unique @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  theme               ThemePreference @default(SYSTEM)
+  weeklyDigest        Boolean         @default(true)
+  auditCompleteEmails Boolean         @default(true)
+  productUpdates      Boolean         @default(false)
+  defaultDevice       DeviceStrategy  @default(MOBILE)
+  locale              String          @default("en")
+  timezone            String          @default("UTC")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_settings")
+}
+
+/// The billing + ownership boundary. Every user gets a personal organization on
+/// signup; Agency plans add teammates to the same organization.
+model Organization {
+  id      String  @id @default(cuid())
+  name    String
+  slug    String  @unique
+  logoUrl String?
+
+  ownerId String @db.Uuid
+  owner   User   @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // White-label (Agency plan)
+  brandColor       String?
+  brandLogoUrl     String?
+  reportFooterText String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members      OrganizationMember[]
+  projects     Project[]
+  subscription Subscription?
+  usageRecords UsageRecord[]
+  invoices     Invoice[]
+  apiKeys      ApiKey[]
+
+  @@index([ownerId])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role     MemberRole @default(MEMBER)
+  joinedAt DateTime   @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@map("organization_members")
+}
+
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+
+model Subscription {
+  id String @id @default(cuid())
+
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  plan   Plan               @default(FREE)
+  status SubscriptionStatus @default(ACTIVE)
+
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
+  stripePriceId        String?
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+  trialEndsAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stripeCustomerId])
+  @@map("subscriptions")
+}
+
+/// Rolling monthly counters used for quota enforcement. One row per
+/// organization per UTC month, incremented atomically as work is consumed.
+model UsageRecord {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// First day of the billing month, normalized to UTC midnight.
+  periodStart DateTime
+
+  auditsRun      Int @default(0)
+  aiReports      Int @default(0)
+  aiChatMessages Int @default(0)
+  pdfExports     Int @default(0)
+  competitorRuns Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, periodStart])
+  @@map("usage_records")
+}
+
+model Invoice {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  stripeInvoiceId  String    @unique
+  number           String?
+  amountDue        Int
+  amountPaid       Int
+  currency         String    @default("usd")
+  status           String
+  hostedInvoiceUrl String?
+  invoicePdfUrl    String?
+  periodStart      DateTime?
+  periodEnd        DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@map("invoices")
+}
+
+// ---------------------------------------------------------------------------
+// Projects & websites
+// ---------------------------------------------------------------------------
+
+model Project {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  color       String  @default("#6366f1")
+  archived    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  websites Website[]
+
+  @@index([organizationId, archived])
+  @@map("projects")
+}
+
+model Website {
+  id String @id @default(cuid())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  /// Canonical origin + path, normalized at write time (lowercase host, no
+  /// trailing slash, no fragment) so repeat audits collapse onto one website.
+  url        String
+  domain     String
+  label      String?
+  faviconUrl String?
+
+  monitoringEnabled Boolean @default(false)
+  monitoringCron    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  audits      Audit[]
+  competitors Competitor[]
+
+  @@unique([projectId, url])
+  @@index([domain])
+  @@map("websites")
+}
+
+// ---------------------------------------------------------------------------
+// Audits
+// ---------------------------------------------------------------------------
+
+model Audit {
+  id String @id @default(cuid())
+
+  websiteId String
+  website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  /// Denormalized so an audit survives project reshuffling and so the history
+  /// view can filter by author without joining through Website -> Project.
+  requestedById String? @db.Uuid
+  requestedBy   User?   @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+
+  url    String
+  status AuditStatus    @default(QUEUED)
+  device DeviceStrategy @default(MOBILE)
+
+  /// Weighted roll-up of the category scores. Null until the run completes.
+  overallScore  Int?
+  previousScore Int?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
+
+  errorMessage String?
+  /// Non-fatal problems (e.g. PageSpeed timed out) surfaced in the UI.
+  warnings     Json?   @db.JsonB
+
+  /// Raw page facts shared by several analyzers: status chain, headers,
+  /// byte weight, detected tech. Kept as JSONB — read whole, never queried.
+  pageMeta Json? @db.JsonB
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categoryScores      CategoryScore[]
+  seoResult           SeoResult?
+  performanceResult   PerformanceResult?
+  accessibilityResult AccessibilityResult?
+  technicalResult     TechnicalResult?
+  aiAnalysis          AiAnalysis?
+  aiReport            AiReport?
+  issues              Issue[]
+  recommendations     Recommendation[]
+  screenshots         Screenshot[]
+  links               LinkRecord[]
+  chatSessions        ChatSession[]
+  comparisonEntries   ComparisonEntry[]
+
+  @@index([websiteId, createdAt])
+  @@index([status, createdAt])
+  @@map("audits")
+}
+
+/// One row per category per audit. Charting and comparison read only this table.
+model CategoryScore {
+  id String @id @default(cuid())
+
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  category AuditCategory
+  score    Int
+  /// Weight applied when rolling up into `Audit.overallScore`.
+  weight   Float         @default(1)
+  summary  String?
+
+  @@unique([auditId, category])
+  @@map("category_scores")
+}
+
+model SeoResult {
+  id      String @id @default(cuid())
+  auditId String @unique
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  score Int
+
+  title             String?
+  titleLength       Int?
+  metaDescription   String?
+  descriptionLength Int?
+  canonicalUrl      String?
+  robotsDirectives  String?
+  indexable         Boolean @default(true)
+  lang              String?
+
+  h1Count        Int   @default(0)
+  h2Count        Int   @default(0)
+  h3Count        Int   @default(0)
+  /// Ordered heading outline: [{ level, text }]
+  headingOutline Json? @db.JsonB
+
+  wordCount             Int    @default(0)
+  readingTimeSec        Int    @default(0)
+  /// [{ term, count, density }] — top terms by density.
+  keywordDensity        Json?  @db.JsonB
+  duplicateContentRatio Float?
+
+  imageCount       Int @default(0)
+  imagesMissingAlt Int @default(0)
+
+  hasOpenGraph        Boolean  @default(false)
+  hasTwitterCard      Boolean  @default(false)
+  hasStructuredData   Boolean  @default(false)
+  /// Detected schema.org @type values.
+  structuredDataTypes String[] @default([])
+
+  hasSitemap   Boolean @default(false)
+  sitemapUrl   String?
+  hasRobotsTxt Boolean @default(false)
+
+  urlDepth      Int     @default(0)
+  urlIsReadable Boolean @default(true)
+
+  internalLinkCount Int @default(0)
+  externalLinkCount Int @default(0)
+
+  @@map("seo_results")
+}
+
+model PerformanceResult {
+  id      String @id @default(cuid())
+  auditId String @unique
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  score  Int
+  source String @default("psi") // "psi" | "lighthouse" | "synthetic"
+
+  // Core Web Vitals & lab metrics (ms unless noted).
+  firstContentfulPaint   Float?
+  largestContentfulPaint Float?
+  cumulativeLayoutShift  Float? // unitless
+  totalBlockingTime      Float?
+  speedIndex             Float?
+  timeToInteractive      Float?
+  serverResponseTime     Float?
+
+  // Payload breakdown (bytes).
+  totalBytes    Int?
+  imageBytes    Int?
+  scriptBytes   Int?
+  styleBytes    Int?
+  fontBytes     Int?
+  documentBytes Int?
+
+  requestCount Int?
+
+  usesCompression  Boolean?
+  usesHttp2        Boolean?
+  usesTextCaching  Boolean?
+  usesModernImages Boolean?
+
+  /// Lighthouse-style opportunities: [{ id, title, description, savingsMs, savingsBytes }]
+  opportunities Json? @db.JsonB
+
+  @@map("performance_results")
+}
+
+model AccessibilityResult {
+  id      String @id @default(cuid())
+  auditId String @unique
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  score Int
+
+  violationCount  Int @default(0)
+  passCount       Int @default(0)
+  incompleteCount Int @default(0)
+
+  criticalCount Int @default(0)
+  seriousCount  Int @default(0)
+  moderateCount Int @default(0)
+  minorCount    Int @default(0)
+
+  contrastIssues     Int @default(0)
+  missingAltText     Int @default(0)
+  missingFormLabels  Int @default(0)
+  missingAriaLabels  Int @default(0)
+  headingOrderIssues Int @default(0)
+  focusIssues        Int @default(0)
+  keyboardIssues     Int @default(0)
+
+  /// WCAG tags covered by the run, e.g. ["wcag2a", "wcag22aa"].
+  wcagTags String[] @default([])
+
+  /// Full axe-core violation payload, trimmed to the top nodes per rule.
+  rawViolations Json? @db.JsonB
+
+  @@map("accessibility_results")
+}
+
+model TechnicalResult {
+  id      String @id @default(cuid())
+  auditId String @unique
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  score Int
+
+  // Transport & security
+  httpsEnabled        Boolean   @default(false)
+  sslValid            Boolean?
+  sslIssuer           String?
+  sslExpiresAt        DateTime?
+  hstsEnabled         Boolean   @default(false)
+  cspEnabled          Boolean   @default(false)
+  xFrameOptions       Boolean   @default(false)
+  xContentTypeOptions Boolean   @default(false)
+  referrerPolicy      Boolean   @default(false)
+  permissionsPolicy   Boolean   @default(false)
+  securityScore       Int       @default(0)
+
+  // Crawlability
+  statusCode               Int?
+  redirectCount            Int      @default(0)
+  redirectChain            String[] @default([])
+  hasCanonical             Boolean  @default(false)
+  canonicalSelfReferencing Boolean?
+
+  // Link health
+  totalLinks    Int @default(0)
+  brokenLinks   Int @default(0)
+  internalLinks Int @default(0)
+  externalLinks Int @default(0)
+  nofollowLinks Int @default(0)
+
+  // Assets
+  scriptCount         Int @default(0)
+  stylesheetCount     Int @default(0)
+  inlineScriptCount   Int @default(0)
+  renderBlockingCount Int @default(0)
+
+  /// Detected frameworks/CMS/analytics, e.g. ["Next.js", "GA4"].
+  detectedTech String[] @default([])
+
+  @@map("technical_results")
+}
+
+/// The AI-authored UX / design / content evaluation. Separate from AiReport so a
+/// report can be regenerated (or re-styled) without re-running the analysis.
+model AiAnalysis {
+  id      String @id @default(cuid())
+  auditId String @unique
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  uxScore      Int
+  designScore  Int
+  contentScore Int
+
+  /// Structured per-dimension findings:
+  /// { navigation: { score, verdict, notes }, ... }
+  uxFindings      Json? @db.JsonB
+  designFindings  Json? @db.JsonB
+  contentFindings Json? @db.JsonB
+
+  model        String
+  promptTokens Int?
+  outputTokens Int?
+  costCents    Float?
+
+  createdAt DateTime @default(now())
+
+  @@map("ai_analyses")
+}
+
+model AiReport {
+  id      String @id @default(cuid())
+  auditId String @unique
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  executiveSummary String   @db.Text
+  strengths        String[] @default([])
+  weaknesses       String[] @default([])
+  /// Short paragraph framing what to do over the next quarter.
+  longTermOutlook  String?  @db.Text
+
+  /// Optional narrative sections keyed by category for the PDF export.
+  sections Json? @db.JsonB
+
+  model        String
+  promptTokens Int?
+  outputTokens Int?
+  costCents    Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_reports")
+}
+
+/// A concrete, evidence-backed problem found by a deterministic analyzer.
+model Issue {
+  id String @id @default(cuid())
+
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  category    AuditCategory
+  severity    Severity
+  /// Stable analyzer rule id, e.g. "seo.title.too-long".
+  code        String
+  title       String
+  description String        @db.Text
+  /// Where it was found — selector, URL, or header name.
+  evidence    String?       @db.Text
+  helpUrl     String?
+
+  @@index([auditId, category])
+  @@index([auditId, severity])
+  @@map("issues")
+}
+
+/// An actionable improvement. Produced by analyzers and by the AI pass, then
+/// ranked into the report's priority list.
+model Recommendation {
+  id String @id @default(cuid())
+
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  category AuditCategory
+  kind     RecommendationKind   @default(QUICK_WIN)
+  priority Priority
+  status   RecommendationStatus @default(OPEN)
+
+  title            String
+  explanation      String     @db.Text
+  expectedImpact   String     @db.Text
+  difficulty       Difficulty
+  estimatedMinutes Int
+
+  /// 0-100 ranking score: impact vs effort. Drives the priority list order.
+  impactScore Int @default(50)
+  /// Rendering order within its priority bucket.
+  sortOrder   Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId, priority, sortOrder])
+  @@map("recommendations")
+}
+
+model Screenshot {
+  id String @id @default(cuid())
+
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  kind   ScreenshotKind
+  url    String
+  width  Int
+  height Int
+  bytes  Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([auditId])
+  @@map("screenshots")
+}
+
+/// Links discovered on the audited page, kept for the broken-link report.
+model LinkRecord {
+  id String @id @default(cuid())
+
+  auditId String
+  audit   Audit  @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  href       String
+  anchorText String?
+  isInternal Boolean
+  isNofollow Boolean @default(false)
+  statusCode Int?
+  isBroken   Boolean @default(false)
+
+  @@index([auditId, isBroken])
+  @@map("link_records")
+}
+
+// ---------------------------------------------------------------------------
+// Competitors
+// ---------------------------------------------------------------------------
+
+model Competitor {
+  id String @id @default(cuid())
+
+  websiteId String
+  website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  url    String
+  domain String
+  label  String?
+
+  createdAt DateTime @default(now())
+
+  comparisons ComparisonEntry[]
+
+  @@unique([websiteId, url])
+  @@map("competitors")
+}
+
+/// A single "you vs. them" run. Holds the AI summary; the per-site numbers live
+/// in ComparisonEntry so the chart is a straight read.
+model Comparison {
+  id String @id @default(cuid())
+
+  /// Denormalized owner scope — comparisons can outlive individual audits.
+  organizationId String
+  websiteId      String
+
+  title     String?
+  aiSummary String? @db.Text
+  model     String?
+
+  createdAt DateTime @default(now())
+
+  entries ComparisonEntry[]
+
+  @@index([organizationId, createdAt])
+  @@index([websiteId, createdAt])
+  @@map("comparisons")
+}
+
+model ComparisonEntry {
+  id String @id @default(cuid())
+
+  comparisonId String
+  comparison   Comparison @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+
+  /// Present for the user's own site; null for a competitor snapshot.
+  auditId String?
+  audit   Audit?  @relation(fields: [auditId], references: [id], onDelete: SetNull)
+
+  competitorId String?
+  competitor   Competitor? @relation(fields: [competitorId], references: [id], onDelete: SetNull)
+
+  label  String
+  url    String
+  isSelf Boolean @default(false)
+
+  overallScore       Int
+  seoScore           Int
+  performanceScore   Int
+  accessibilityScore Int
+  uxScore            Int
+  designScore        Int
+  contentScore       Int
+  securityScore      Int
+
+  @@index([comparisonId])
+  @@map("comparison_entries")
+}
+
+// ---------------------------------------------------------------------------
+// AI chat
+// ---------------------------------------------------------------------------
+
+model ChatSession {
+  id String @id @default(cuid())
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The audit that grounds this conversation.
+  auditId String?
+  audit   Audit?  @relation(fields: [auditId], references: [id], onDelete: SetNull)
+
+  title String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages ChatMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id String @id @default(cuid())
+
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role    ChatRole
+  content String   @db.Text
+
+  tokens Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("chat_messages")
+}
+
+// ---------------------------------------------------------------------------
+// Platform
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title  String
+  body   String?
+  href   String?
+  /// "audit" | "billing" | "system"
+  kind   String    @default("system")
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+/// Agency-plan API access. Only the hash is stored; the plaintext key is shown
+/// exactly once at creation time.
+model ApiKey {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdById String @db.Uuid
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  name       String
+  hashedKey  String    @unique
+  /// First 8 chars, for display: "sp_live_1a2b…".
+  prefix     String
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@map("api_keys")
+}

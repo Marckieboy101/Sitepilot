@@ -162,7 +162,12 @@ export function analyzeContent(context: PageContext): CategoryResult<ContentDeta
     });
   }
 
-  const genericCtas = ctaLabels.filter((label) => /^(?:submit|click here|learn more|read more)$/i.test(label.trim()));
+  // Checked against every interactive label, not just the recognised CTAs:
+  // "Submit" is precisely the wording that fails to read as a call to action,
+  // so filtering `ctaLabels` would never surface the problem it is looking for.
+  const genericCtas = ctaCandidates.filter((label) =>
+    /^(?:submit|send|click here|learn more|read more|go|next|continue)$/i.test(label.trim()),
+  );
   if (genericCtas.length > 0) {
     issues.push({
       code: 'content.cta.generic',

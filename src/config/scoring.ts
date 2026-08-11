@@ -183,15 +183,62 @@ export function metricVerdict(key: MetricKey, value: number | null | undefined):
 }
 
 /**
- * Log-normal curve used by Lighthouse to turn a raw metric into 0-100.
- * Reimplemented so synthetic runs (no PSI key) score on the same curve as PSI
- * results — otherwise the two sources would produce incomparable history.
+ * Complementary error function.
+ *
+ * Numerical Recipes' `erfcc` rational approximation, accurate to ~1.2e-7 —
+ * far tighter than the precision of the metrics feeding it. Needed because the
+ * log-normal scoring curve below has no closed form without it.
  */
-export function metricToScore(value: number, median: number, podium: number): number {
+function erfc(x: number): number {
+  const z = Math.abs(x);
+  const t = 1 / (1 + z / 2);
+
+  const r =
+    t *
+    Math.exp(
+      -z * z -
+        1.26551223 +
+        t *
+          (1.00002368 +
+            t *
+              (0.37409196 +
+                t *
+                  (0.09678418 +
+                    t *
+                      (-0.18628806 +
+                        t *
+                          (0.27886807 +
+                            t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))),
+    );
+
+  return x >= 0 ? r : 2 - r;
+}
+
+/**
+ * Lighthouse's log-normal scoring curve, turning a raw metric into 0-100.
+ *
+ * Reimplemented so a synthetic run (no PageSpeed key) lands on the same curve
+ * as a real PSI result — otherwise the two sources would produce incomparable
+ * numbers and the trend chart would step every time the source changed.
+ *
+ * The two control points are the ones Lighthouse publishes: `median` is the
+ * value that scores 50, and `p10` is the value that scores 90 (the tenth
+ * percentile of real-world sites). Both are required for the curve to have the
+ * right shape — an exponential approximation through the median alone scores
+ * the p10 point in the low 70s, which would make every synthetic result look
+ * markedly worse than the same page measured by PSI.
+ */
+export function metricToScore(value: number, median: number, p10: number): number {
   if (!Number.isFinite(value) || value <= 0) return 100;
-  const shape = Math.log(podium / median) / Math.log(0.5) || 1;
-  const score = Math.exp(-Math.pow(value / median, shape) * Math.LN2);
-  return Math.round(Math.min(100, Math.max(0, score * 100)));
+  if (median <= 0 || p10 <= 0 || p10 >= median) return 50;
+
+  // erfc(INVERSE_ERFC_ONE_FIFTH) === 0.2, which is what places p10 at 90.
+  const INVERSE_ERFC_ONE_FIFTH = 0.9061938024368232;
+
+  const shape = (Math.log(median) - Math.log(p10)) / (Math.SQRT2 * INVERSE_ERFC_ONE_FIFTH);
+  const standardized = (Math.log(value) - Math.log(median)) / (Math.SQRT2 * shape);
+
+  return Math.round(Math.min(100, Math.max(0, (erfc(standardized) / 2) * 100)));
 }
 
 // ---------------------------------------------------------------------------
@@ -242,9 +289,14 @@ export function scoreFromIssues(issues: readonly { severity: Severity }[], floor
   let deduction = 0;
   for (const [severity, count] of counts) {
     const penalty = SEVERITY_PENALTY[severity];
-    // First occurrence full price, each subsequent one worth ~70% of the last.
+    // First occurrence at full price, each subsequent one worth 85% of the
+    // last. The ratio matters: the geometric series converges to
+    // penalty / (1 - ratio), so at 0.7 a page with nothing but critical issues
+    // could never score below 33 no matter how broken it was. At 0.85 the
+    // ceiling is high enough for a genuinely broken page to reach zero, while
+    // still stopping the tenth minor issue from counting as much as the first.
     for (let i = 0; i < count; i += 1) {
-      deduction += penalty * Math.pow(0.7, i);
+      deduction += penalty * Math.pow(0.85, i);
     }
   }
 

@@ -46,8 +46,14 @@ export const getAuthUser = cache(async () => {
 
     if (error || !user) return null;
     return user;
-  } catch {
-    // Supabase not configured, or the cookie jar is unavailable.
+  } catch (caught) {
+    // `cookies()` throws a DynamicServerError during static generation to
+    // signal that the route must render dynamically. Swallowing it would make
+    // the page prerender as signed-out instead — so it has to propagate.
+    if (caught instanceof Error && caught.name === 'DynamicServerError') throw caught;
+
+    // Anything else here means Supabase is not configured; treat as signed out
+    // so the marketing site still renders during local setup.
     return null;
   }
 });

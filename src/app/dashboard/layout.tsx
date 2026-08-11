@@ -9,6 +9,13 @@ import { getNotifications } from '@/features/notifications/queries';
 import { displayUrl } from '@/lib/url';
 
 /**
+ * Every route under /dashboard reads the session and per-user data, so none of
+ * it can be prerendered. Declaring it on the layout covers the whole subtree
+ * rather than relying on each page to opt out individually.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
  * Authenticated shell.
  *
  * The middleware already redirects unauthenticated requests, but the check is

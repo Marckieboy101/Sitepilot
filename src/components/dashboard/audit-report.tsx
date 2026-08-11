@@ -19,7 +19,6 @@ import { toast } from 'sonner';
 
 import { DifficultyBadge, PriorityBadge, SeverityBadge } from '@/components/shared/severity-badge';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CATEGORY_LABELS, METRIC_THRESHOLDS, metricVerdict, type MetricKey } from '@/config/scoring';
 import { updateRecommendationStatusAction } from '@/features/audit/actions';

@@ -9,7 +9,8 @@ import '@testing-library/jest-dom/vitest';
  * no Chromium, no AI), which is also how the app behaves on a fresh local
  * install.
  */
-process.env.NODE_ENV = 'test';
+// `NODE_ENV` is typed readonly by @types/node; Vitest already sets it to
+// 'test', so this only needs to be defensive.
 process.env.DATABASE_URL ??= 'postgresql://localhost:5432/sitepilot_test';
 process.env.NEXT_PUBLIC_APP_URL ??= 'http://localhost:3000';
 process.env.LOG_LEVEL ??= 'error';

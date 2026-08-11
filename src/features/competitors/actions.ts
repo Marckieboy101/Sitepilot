@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import { errors, fail, ok, type ActionResult } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { RATE_LIMITS, enforceRateLimit } from '@/lib/rate-limit';
-import { assertPublicUrl, domainOf, normalizeUrl } from '@/lib/url';
+import { assertPublicUrl, normalizeUrl } from '@/lib/url';
 
 import { requireSession } from '../auth/session';
 import { consumeQuota, getEntitlements, requireFeature } from '../billing/quota';

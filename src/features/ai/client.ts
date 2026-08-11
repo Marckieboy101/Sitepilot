@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { z } from 'zod';
+import type { z } from 'zod';
 
 import { serverEnv } from '@/lib/env';
 import { errors } from '@/lib/errors';

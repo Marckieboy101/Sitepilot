@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { Plan, SubscriptionStatus } from '@prisma/client';
+import { SubscriptionStatus, type Plan } from '@prisma/client';
 
 import { PLANS, PLAN_ORDER } from '@/config/plans';
 import { serverEnv } from '@/lib/env';

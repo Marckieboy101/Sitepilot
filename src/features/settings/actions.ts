@@ -96,7 +96,10 @@ export async function deleteAccountAction(
   try {
     const session = await requireSession();
 
-    if (input.confirmation.trim().toLowerCase() !== session.email.toLowerCase()) {
+    const parsed = deleteAccountSchema.safeParse(input);
+    if (!parsed.success) throw errors.validation('Type your email address exactly to confirm.');
+
+    if (parsed.data.confirmation.trim().toLowerCase() !== session.email.toLowerCase()) {
       throw errors.validation('Type your email address exactly to confirm.');
     }
 

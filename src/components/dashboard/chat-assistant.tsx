@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import Link from 'next/link';
-import { ArrowUp, Bot, Loader2, Lock, Sparkles, User } from 'lucide-react';
+import { ArrowUp, Bot, Loader2, Lock, Sparkles } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';

@@ -1,6 +1,6 @@
 import { cache } from 'react';
 
-import { AuditStatus, Prisma } from '@prisma/client';
+import { AuditStatus, type Prisma } from '@prisma/client';
 
 import { db } from '@/lib/db';
 import { errors } from '@/lib/errors';

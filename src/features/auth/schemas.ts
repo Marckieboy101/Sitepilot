@@ -26,8 +26,8 @@ export const signUpSchema = z.object({
   name: z.string().min(1, 'Tell us your name').max(80).trim(),
   email: emailSchema,
   password: passwordSchema,
-  acceptTerms: z.literal(true, {
-    errorMap: () => ({ message: 'Please accept the terms to continue' }),
+  acceptTerms: z.boolean().refine((value) => value, {
+    message: 'Please accept the terms to continue',
   }),
 });
 

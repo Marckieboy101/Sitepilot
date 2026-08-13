@@ -292,19 +292,21 @@ export function BillingPanel(props: BillingPanelProps) {
 }
 
 function UsageMeter({ label, used, limit }: { label: string; used: number; limit: number | null }) {
-  const percent = limit == null ? 0 : Math.min(100, (used / limit) * 100);
-  const exhausted = limit != null && used >= limit;
+  const safeUsed = Number.isFinite(used) ? used : 0;
+  const safeLimit = Number.isFinite(limit ?? NaN) ? limit : null;
+  const percent = safeLimit == null || safeLimit <= 0 ? 0 : Math.min(100, (safeUsed / safeLimit) * 100);
+  const exhausted = safeLimit != null && safeUsed >= safeLimit;
 
   return (
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm text-muted-foreground">{label}</span>
         <span className={cn('text-sm font-medium tabular-nums', exhausted && 'text-destructive')}>
-          {used}
-          {limit != null ? ` / ${limit}` : ''}
+          {safeUsed}
+          {safeLimit != null ? ` / ${safeLimit}` : ''}
         </span>
       </div>
-      {limit != null ? (
+      {safeLimit != null ? (
         <Progress
           value={percent}
           className="mt-2 h-1.5"

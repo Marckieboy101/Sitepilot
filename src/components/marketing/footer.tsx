@@ -73,7 +73,7 @@ export function Footer() {
 
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-8 sm:flex-row">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Momo. All rights reserved.
+            © {new Date().getFullYear()} SitePilot AI. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Performance data from Google PageSpeed Insights · Accessibility testing by axe-core

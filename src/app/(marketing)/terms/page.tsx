@@ -4,7 +4,7 @@ import { LegalPage, LEGAL_SECTIONS } from '@/components/marketing/legal';
 
 export const metadata: Metadata = {
   title: 'Terms of service',
-  description: 'The terms that govern your use of Momo.',
+  description: 'The terms that govern your use of SitePilot AI.',
 };
 
 export default function TermsPage() {

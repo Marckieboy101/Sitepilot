@@ -35,7 +35,7 @@ export function Logo({ className, href = '/', showWordmark = true }: LogoProps) 
       <LogoMark />
       {showWordmark && (
         <span className="text-[1.0625rem] font-semibold tracking-[-0.02em]">
-          Momo
+          SitePilot AI
         </span>
       )}
     </span>
@@ -45,7 +45,7 @@ export function Logo({ className, href = '/', showWordmark = true }: LogoProps) 
 
   return (
     <Link href={href} className="rounded-lg transition-opacity hover:opacity-85">
-      <span className="sr-only">Momo — home</span>
+      <span className="sr-only">SitePilot AI — home</span>
       <span aria-hidden="true">{content}</span>
     </Link>
   );

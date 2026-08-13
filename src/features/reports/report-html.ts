@@ -114,7 +114,7 @@ function categoryBar(label: string, score: number): string {
 
 export function renderReportHtml(data: ReportData, branding: ReportBranding): string {
   const accent = branding.whiteLabel && branding.brandColor ? branding.brandColor : '#6366f1';
-  const productName = branding.whiteLabel ? branding.organizationName : 'Momo';
+  const productName = branding.whiteLabel ? branding.organizationName : 'SitePilot AI';
 
   const auditedAt = data.auditedAt.toLocaleDateString('en-US', {
     year: 'numeric',

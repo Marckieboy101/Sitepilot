@@ -44,7 +44,7 @@ Rules:
 
 Return only valid JSON matching the requested schema.`;
 
-export const CHAT_SYSTEM_PROMPT = `You are Momo's assistant. You have the results of a real audit of the user's website in front of you and you answer questions about it.
+export const CHAT_SYSTEM_PROMPT = `You are SitePilot AI's assistant. You have the results of a real audit of the user's website in front of you and you answer questions about it.
 
 Rules:
 - Answer from the audit data supplied. If the answer is not in it, say what you do know and what you would need to check.

@@ -12,24 +12,96 @@ import { z } from 'zod';
  * refusing to boot, which keeps local development usable with just a database.
  */
 
+export function normalizeEnvValue(value: string | undefined): string | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return undefined;
+
+  const unwrapped = trimmed.replace(/^(['"])(.*)\1$/, '$2');
+  return unwrapped.trim();
+}
+
+export function sanitizeSupabaseUrl(value: string | undefined): string | undefined {
+  const normalized = normalizeEnvValue(value);
+  if (!normalized) return undefined;
+
+  const lower = normalized.toLowerCase();
+  if (lower === 'https://your-project.supabase.co' || lower.includes('your-project.supabase.co')) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+export function sanitizeSupabaseKey(value: string | undefined): string | undefined {
+  const normalized = normalizeEnvValue(value);
+  if (!normalized) return undefined;
+
+  const lower = normalized.toLowerCase();
+  if (
+    lower === 'your-anon-key' ||
+    lower === 'your-service-role-key' ||
+    lower === 'anon-key' ||
+    lower === 'service-role-key'
+  ) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
 const clientSchema = z.object({
-  NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  NEXT_PUBLIC_APP_URL: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().url().default('http://localhost:3000'),
+  ),
+  NEXT_PUBLIC_SUPABASE_URL: z.preprocess(
+    (value) => sanitizeSupabaseUrl(typeof value === 'string' ? value : undefined),
+    z.string().url().optional(),
+  ),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.preprocess(
+    (value) => sanitizeSupabaseKey(typeof value === 'string' ? value : undefined),
+    z.string().min(1).optional(),
+  ),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().optional(),
+  ),
 });
 
 const serverSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  NODE_ENV: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.enum(['development', 'test', 'production']).default('development'),
+  ),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  DIRECT_URL: z.string().optional(),
+  DATABASE_URL: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().min(1, 'DATABASE_URL is required'),
+  ),
+  DIRECT_URL: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().optional(),
+  ),
 
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.preprocess(
+    (value) => sanitizeSupabaseKey(typeof value === 'string' ? value : undefined),
+    z.string().optional(),
+  ),
 
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_MODEL: z.string().default('gpt-4o'),
-  OPENAI_MODEL_FAST: z.string().default('gpt-4o-mini'),
+  OPENAI_API_KEY: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().optional(),
+  ),
+  OPENAI_MODEL: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().default('gpt-4o'),
+  ),
+  OPENAI_MODEL_FAST: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().default('gpt-4o-mini'),
+  ),
 
   GOOGLE_PAGESPEED_API_KEY: emptyAsUndefined(),
   CHROMIUM_EXECUTABLE_PATH: emptyAsUndefined(),
@@ -41,15 +113,18 @@ const serverSchema = z.object({
   STRIPE_PRICE_AGENCY_MONTHLY: emptyAsUndefined(),
   STRIPE_PRICE_AGENCY_YEARLY: emptyAsUndefined(),
 
-  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  LOG_LEVEL: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  ),
 });
 
 /** Treats `FOO=""` in a .env file the same as an unset variable. */
 function emptyAsUndefined() {
-  return z
-    .string()
-    .optional()
-    .transform((value) => (value && value.trim().length > 0 ? value : undefined));
+  return z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.string().optional().transform((value) => (value && value.trim().length > 0 ? value : undefined)),
+  );
 }
 
 export type ClientEnv = z.infer<typeof clientSchema>;

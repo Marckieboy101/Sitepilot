@@ -47,12 +47,16 @@ const log = logger.child({ module: 'audit/actions' });
  */
 
 async function clientIp(): Promise<string> {
-  const headerList = await headers();
-  return (
-    headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    headerList.get('x-real-ip') ??
-    'unknown'
-  );
+  try {
+    const headerList = await headers();
+    return (
+      headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      headerList.get('x-real-ip') ??
+      'unknown'
+    );
+  } catch {
+    return 'unknown';
+  }
 }
 
 export interface StartedAudit {

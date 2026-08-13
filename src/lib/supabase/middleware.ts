@@ -1,6 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { sanitizeSupabaseKey, sanitizeSupabaseUrl } from '@/lib/env';
+
 /** Shape Supabase hands back from `setAll`. Annotated explicitly because the
  *  cookie-methods parameter is a union type, which defeats inference. */
 type CookieToSet = { name: string; value: string; options: CookieOptions };
@@ -22,11 +24,11 @@ const AUTH_ROUTES = ['/login', '/signup', '/reset-password'];
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = sanitizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const key = sanitizeSupabaseKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-  // Without Supabase configured there is no session to refresh; let the request
-  // through so the marketing site still renders during local setup.
+  // Without a real Supabase config there is no session to refresh; let the
+  // request through so the marketing site still renders during local setup.
   if (!url || !key) return response;
 
   const supabase = createServerClient(url, key, {

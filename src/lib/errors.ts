@@ -85,10 +85,38 @@ export function ok<T>(data: T): ActionResult<T> {
   return { ok: true, data };
 }
 
+function configMessageFromError(error: Error): string | null {
+  const match = /Invalid server environment variables:\s*([\s\S]*?)$/m.exec(error.message);
+  if (!match) return null;
+
+  const missing = match[1]
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^•\s*/, '').replace(/:\s*.*$/, ''))
+    .filter(Boolean);
+
+  if (missing.length === 0) return null;
+
+  const label = missing.length === 1 ? 'variable' : 'variables';
+  return `The app is not configured yet. Missing required environment ${label}: ${missing.join(', ')}.`;
+}
+
 export function fail(error: unknown): ActionResult<never> {
   if (error instanceof AppError) {
     return { ok: false, error: { code: error.code, message: error.message, details: error.details } };
   }
+
+  if (error instanceof Error) {
+    const configMessage = configMessageFromError(error);
+    if (configMessage) {
+      return {
+        ok: false,
+        error: { code: 'CONFIGURATION', message: configMessage },
+      };
+    }
+  }
+
   return {
     ok: false,
     error: { code: 'INTERNAL', message: 'Something went wrong on our end. Please try again.' },

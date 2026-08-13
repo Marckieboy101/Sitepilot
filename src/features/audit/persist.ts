@@ -1,4 +1,4 @@
-import type { AuditCategory, AuditStatus, Prisma, ScreenshotKind } from '@prisma/client';
+import { AuditCategory, AuditStatus, Prisma, ScreenshotKind } from '@prisma/client';
 
 import { CATEGORY_WEIGHTS } from '@/config/scoring';
 import { db } from '@/lib/db';

@@ -1,4 +1,4 @@
-import type { Difficulty, Severity } from '@prisma/client';
+import { Difficulty, Severity } from '@prisma/client';
 
 import { CATEGORY_WEIGHTS, impactScore } from '@/config/scoring';
 import { toScore, unique } from '@/lib/utils';

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { AppError } from '@/lib/errors';
+import { AppError, fail } from '@/lib/errors';
+import { normalizeEnvValue, sanitizeSupabaseKey, sanitizeSupabaseUrl } from '@/lib/env';
 import {
   assertPublicUrl,
   coerceUrl,
@@ -154,5 +155,34 @@ describe('displayUrl', () => {
   it('strips the scheme and truncates', () => {
     expect(displayUrl('https://example.com/')).toBe('example.com');
     expect(displayUrl('https://example.com/a/very/long/path/indeed', 12)).toHaveLength(12);
+  });
+});
+
+describe('normalizeEnvValue', () => {
+  it('strips wrapping quotes from env values', () => {
+    expect(normalizeEnvValue('"info"')).toBe('info');
+    expect(normalizeEnvValue("'https://example.com' ")).toBe('https://example.com');
+    expect(normalizeEnvValue('')).toBeUndefined();
+    expect(normalizeEnvValue(undefined)).toBeUndefined();
+  });
+
+  it('treats placeholder Supabase values as unset', () => {
+    expect(sanitizeSupabaseUrl('https://your-project.supabase.co')).toBeUndefined();
+    expect(sanitizeSupabaseUrl('https://real-project.supabase.co')).toBe('https://real-project.supabase.co');
+    expect(sanitizeSupabaseKey('your-anon-key')).toBeUndefined();
+    expect(sanitizeSupabaseKey('your-service-role-key')).toBeUndefined();
+    expect(sanitizeSupabaseKey('real-anon-key')).toBe('real-anon-key');
+  });
+});
+
+describe('fail', () => {
+  it('maps missing configuration to a helpful configuration error', () => {
+    const result = fail(new Error('Invalid server environment variables:\n  • DATABASE_URL: Required'));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('CONFIGURATION');
+      expect(result.error.message).toContain('DATABASE_URL');
+    }
   });
 });

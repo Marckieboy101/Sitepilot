@@ -1,7 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-import { clientEnv, serverEnv } from '@/lib/env';
+import { clientEnv, sanitizeSupabaseKey, sanitizeSupabaseUrl, serverEnv } from '@/lib/env';
 
 /**
  * Server Supabase client, bound to the request's cookie jar.
@@ -14,12 +14,12 @@ import { clientEnv, serverEnv } from '@/lib/env';
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
 
-  const url = clientEnv.NEXT_PUBLIC_SUPABASE_URL;
-  const key = clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = sanitizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) ?? clientEnv.NEXT_PUBLIC_SUPABASE_URL;
+  const key = sanitizeSupabaseKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ?? clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
     throw new Error(
-      'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+      'Supabase auth is not configured. Set real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY values to enable signup and sign in.',
     );
   }
 
@@ -49,10 +49,11 @@ export async function createServerSupabaseClient() {
  */
 export function createAdminClient() {
   const env = serverEnv();
-  const url = clientEnv.NEXT_PUBLIC_SUPABASE_URL;
+  const url = sanitizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL) ?? clientEnv.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = sanitizeSupabaseKey(process.env.SUPABASE_SERVICE_ROLE_KEY) ?? env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !env.SUPABASE_SERVICE_ROLE_KEY) {
-    throw new Error('Supabase admin client requires SUPABASE_SERVICE_ROLE_KEY.');
+  if (!url || !serviceRoleKey) {
+    throw new Error('Supabase admin client requires a real SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL.');
   }
 
   return createServerClient(url, env.SUPABASE_SERVICE_ROLE_KEY, {

@@ -1,4 +1,4 @@
-import { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
+import type { Difficulty, Severity } from '@prisma/client';
 
 import { CATEGORY_WEIGHTS, impactScore } from '@/config/scoring';
 import { toScore, unique } from '@/lib/utils';
@@ -23,10 +23,10 @@ import type {
  */
 
 const IMPACT_SEVERITY: Record<string, Severity> = {
-  critical: Severity.CRITICAL,
-  serious: Severity.HIGH,
-  moderate: Severity.MEDIUM,
-  minor: Severity.LOW,
+  critical: 'CRITICAL',
+  serious: 'HIGH',
+  moderate: 'MEDIUM',
+  minor: 'LOW',
 };
 
 /** Plain-English guidance for the axe rules users hit most. */
@@ -212,7 +212,7 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
 
     issues.push({
       code: `a11y.${violation.id}`,
-      category: AuditCategory.ACCESSIBILITY,
+      category: 'ACCESSIBILITY',
       severity,
       title: `${violation.help} (${affected} element${affected === 1 ? '' : 's'})`,
       description: violation.description,
@@ -225,17 +225,16 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
 
     const guidance = RULE_GUIDANCE[violation.id];
     if (guidance) {
-      const difficulty = guidance.minutes > 120 ? Difficulty.MEDIUM : Difficulty.EASY;
+      const difficulty = guidance.minutes > 120 ? 'MEDIUM' : 'EASY';
       recommendations.push({
-        category: AuditCategory.ACCESSIBILITY,
+        category: 'ACCESSIBILITY',
         title: violation.help,
         explanation: `${guidance.fix} ${affected} element${affected === 1 ? '' : 's'} on this page ${affected === 1 ? 'is' : 'are'} affected.`,
         expectedImpact: guidance.impact,
         difficulty,
         estimatedMinutes: guidance.minutes,
-        priority:
-          severity === Severity.CRITICAL || severity === Severity.HIGH ? Priority.HIGH : Priority.MEDIUM,
-        impactScore: impactScore({ severity, difficulty, categoryWeight: CATEGORY_WEIGHTS.ACCESSIBILITY }),
+        priority: severity === 'CRITICAL' || severity === 'HIGH' ? 'HIGH' : 'MEDIUM',
+        impactScore: impactScore({ severity: severity as Severity, difficulty: difficulty as Difficulty, categoryWeight: (CATEGORY_WEIGHTS as unknown as Record<string, number>).ACCESSIBILITY }),
         kind: guidance.minutes <= 120 ? 'QUICK_WIN' : 'LONG_TERM',
       });
     }
@@ -250,21 +249,21 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.missingAltText > 0 && !axeRules.has('image-alt')) {
     issues.push({
       code: 'a11y.static.image-alt',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.HIGH,
+      category: 'ACCESSIBILITY',
+      severity: 'HIGH',
       title: `${statics.missingAltText} image${statics.missingAltText === 1 ? '' : 's'} missing alt text`,
       description:
         'Images without an alt attribute are announced as a filename, or skipped entirely, by screen readers.',
     });
     recommendations.push({
-      category: AuditCategory.ACCESSIBILITY,
+      category: 'ACCESSIBILITY',
       title: 'Add alt text to images',
       explanation: RULE_GUIDANCE['image-alt'].fix,
       expectedImpact: RULE_GUIDANCE['image-alt'].impact,
-      difficulty: Difficulty.EASY,
+      difficulty: 'EASY',
       estimatedMinutes: Math.min(120, statics.missingAltText * 5),
-      priority: Priority.HIGH,
-      impactScore: impactScore({ severity: Severity.HIGH, difficulty: Difficulty.EASY, categoryWeight: CATEGORY_WEIGHTS.ACCESSIBILITY }),
+      priority: 'HIGH',
+      impactScore: impactScore({ severity: 'HIGH' as Severity, difficulty: 'EASY' as Difficulty, categoryWeight: (CATEGORY_WEIGHTS as unknown as Record<string, number>).ACCESSIBILITY }),
       kind: 'QUICK_WIN',
     });
   }
@@ -272,21 +271,21 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.missingFormLabels > 0 && !axeRules.has('label')) {
     issues.push({
       code: 'a11y.static.form-labels',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.HIGH,
+      category: 'ACCESSIBILITY',
+      severity: 'HIGH',
       title: `${statics.missingFormLabels} form field${statics.missingFormLabels === 1 ? '' : 's'} without a label`,
       description:
         'A placeholder is not a label — it disappears on focus and is not reliably announced. Every input needs an associated <label>.',
     });
     recommendations.push({
-      category: AuditCategory.ACCESSIBILITY,
+      category: 'ACCESSIBILITY',
       title: 'Label every form field',
       explanation: RULE_GUIDANCE.label.fix,
       expectedImpact: RULE_GUIDANCE.label.impact,
-      difficulty: Difficulty.EASY,
+      difficulty: 'EASY',
       estimatedMinutes: Math.min(120, statics.missingFormLabels * 10),
-      priority: Priority.HIGH,
-      impactScore: impactScore({ severity: Severity.HIGH, difficulty: Difficulty.EASY, categoryWeight: CATEGORY_WEIGHTS.ACCESSIBILITY }),
+      priority: 'HIGH',
+      impactScore: impactScore({ severity: 'HIGH' as Severity, difficulty: 'EASY' as Difficulty, categoryWeight: (CATEGORY_WEIGHTS as unknown as Record<string, number>).ACCESSIBILITY }),
       kind: 'QUICK_WIN',
     });
   }
@@ -294,8 +293,8 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.missingAriaLabels > 0 && !axeRules.has('button-name') && !axeRules.has('link-name')) {
     issues.push({
       code: 'a11y.static.control-names',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.HIGH,
+      category: 'ACCESSIBILITY',
+      severity: 'HIGH',
       title: `${statics.missingAriaLabels} button${statics.missingAriaLabels === 1 ? '' : 's'} or link${statics.missingAriaLabels === 1 ? '' : 's'} with no accessible name`,
       description:
         'Icon-only controls with no text and no aria-label are announced as just "button" or "link", giving no clue what they do.',
@@ -305,8 +304,8 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.headingOrderIssues > 0 && !axeRules.has('heading-order')) {
     issues.push({
       code: 'a11y.static.heading-order',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.MEDIUM,
+      category: 'ACCESSIBILITY',
+      severity: 'MEDIUM',
       title: `Heading levels skip ${statics.headingOrderIssues} time${statics.headingOrderIssues === 1 ? '' : 's'}`,
       description:
         'Jumping from H2 straight to H4 breaks the document outline that screen-reader users rely on to navigate.',
@@ -316,8 +315,8 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.missingLandmarks) {
     issues.push({
       code: 'a11y.static.no-main',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.MEDIUM,
+      category: 'ACCESSIBILITY',
+      severity: 'MEDIUM',
       title: 'No <main> landmark',
       description:
         'Without a main landmark there is no "skip to content" target, so screen-reader users hear the entire navigation on every page.',
@@ -327,8 +326,8 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.missingLang && !axeRules.has('html-has-lang')) {
     issues.push({
       code: 'a11y.static.no-lang',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.MEDIUM,
+      category: 'ACCESSIBILITY',
+      severity: 'MEDIUM',
       title: 'No lang attribute on <html>',
       description: 'Screen readers need the page language to choose the correct pronunciation rules.',
     });
@@ -337,23 +336,23 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.focusIssues > 0) {
     issues.push({
       code: 'a11y.static.focus-removed',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.HIGH,
+      category: 'ACCESSIBILITY',
+      severity: 'HIGH',
       title: 'Focus outlines are removed without a replacement',
       description:
         'Your CSS sets outline: none on :focus with no :focus-visible alternative. Keyboard users lose all indication of where they are on the page.',
     });
     recommendations.push({
-      category: AuditCategory.ACCESSIBILITY,
+      category: 'ACCESSIBILITY',
       title: 'Restore a visible focus indicator',
       explanation:
         'Replace `:focus { outline: none }` with a styled `:focus-visible` rule — a 2px outline in your brand colour with 2px of offset works well and looks deliberate.',
       expectedImpact:
         'Keyboard and switch-device users can see where they are. This is a WCAG 2.2 AA requirement, not a preference.',
-      difficulty: Difficulty.EASY,
+      difficulty: 'EASY',
       estimatedMinutes: 30,
-      priority: Priority.HIGH,
-      impactScore: impactScore({ severity: Severity.HIGH, difficulty: Difficulty.EASY, categoryWeight: CATEGORY_WEIGHTS.ACCESSIBILITY }),
+      priority: 'HIGH',
+      impactScore: impactScore({ severity: 'HIGH' as Severity, difficulty: 'EASY' as Difficulty, categoryWeight: (CATEGORY_WEIGHTS as unknown as Record<string, number>).ACCESSIBILITY }),
       kind: 'QUICK_WIN',
     });
   }
@@ -361,8 +360,8 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.keyboardIssues > 0) {
     issues.push({
       code: 'a11y.static.keyboard-traps',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.HIGH,
+      category: 'ACCESSIBILITY',
+      severity: 'HIGH',
       title: `${statics.keyboardIssues} clickable element${statics.keyboardIssues === 1 ? '' : 's'} unreachable by keyboard`,
       description:
         'These elements have click handlers but are not focusable and have no interactive role, so they cannot be reached or activated without a mouse.',
@@ -372,8 +371,8 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   if (statics.hasPositiveTabindex > 0) {
     issues.push({
       code: 'a11y.static.positive-tabindex',
-      category: AuditCategory.ACCESSIBILITY,
-      severity: Severity.MEDIUM,
+      category: 'ACCESSIBILITY',
+      severity: 'MEDIUM',
       title: `${statics.hasPositiveTabindex} element${statics.hasPositiveTabindex === 1 ? '' : 's'} with a positive tabindex`,
       description:
         'Positive tabindex values override the natural tab order and almost always produce a confusing, unpredictable sequence.',
@@ -406,7 +405,7 @@ export function analyzeAccessibility(context: PageContext): CategoryResult<Acces
   };
 
   return {
-    category: AuditCategory.ACCESSIBILITY,
+    category: 'ACCESSIBILITY',
     score: computeScore(detail, Boolean(axe), issues.length),
     summary: buildSummary(detail, Boolean(axe)),
     issues,

@@ -1,4 +1,4 @@
-import { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
+import type { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
 
 import { CATEGORY_WEIGHTS, impactScore } from '@/config/scoring';
 import { logger } from '@/lib/logger';
@@ -149,8 +149,8 @@ function toCategoryResult(
   // findings that we can point at a specific element. Its output becomes
   // recommendations, where a judgement call is what the user wants.
   const recommendations: AnalyzerRecommendation[] = suggestions.map((suggestion, index) => {
-    const difficulty = index < 2 ? Difficulty.EASY : Difficulty.MEDIUM;
-    const severity = score < 50 ? Severity.HIGH : score < 75 ? Severity.MEDIUM : Severity.LOW;
+    const difficulty = index < 2 ? 'EASY' : 'MEDIUM';
+    const severity = score < 50 ? 'HIGH' : score < 75 ? 'MEDIUM' : 'LOW';
 
     return {
       category,
@@ -158,10 +158,10 @@ function toCategoryResult(
       explanation: suggestion,
       expectedImpact: weakestDimensionImpact(dimensions, category),
       difficulty,
-      estimatedMinutes: difficulty === Difficulty.EASY ? 60 : 150,
-      priority: score < 50 ? Priority.HIGH : score < 75 ? Priority.MEDIUM : Priority.LOW,
-      impactScore: impactScore({ severity, difficulty, categoryWeight: CATEGORY_WEIGHTS[category] }),
-      kind: difficulty === Difficulty.EASY ? 'QUICK_WIN' : 'LONG_TERM',
+      estimatedMinutes: difficulty === 'EASY' ? 60 : 150,
+      priority: (score < 50 ? 'HIGH' : score < 75 ? 'MEDIUM' : 'LOW') as Priority,
+      impactScore: impactScore({ severity: severity as Severity, difficulty: difficulty as Difficulty, categoryWeight: (CATEGORY_WEIGHTS as unknown as Record<string, number>)[category] }),
+      kind: difficulty === 'EASY' ? 'QUICK_WIN' : 'LONG_TERM',
     };
   });
 
@@ -240,15 +240,15 @@ export async function runAiAnalysis(input: AnalysisInput): Promise<AiAnalysisRes
   });
 
   return {
-    ux: toCategoryResult(AuditCategory.UX, data.ux.score, dimensionsOf(data.ux, UX_KEYS), data.ux.conversionOpportunities),
+    ux: toCategoryResult('UX' as AuditCategory, data.ux.score, dimensionsOf(data.ux, UX_KEYS), data.ux.conversionOpportunities),
     design: toCategoryResult(
-      AuditCategory.DESIGN,
+      'DESIGN' as AuditCategory,
       data.design.score,
       dimensionsOf(data.design, DESIGN_KEYS),
       data.design.improvements,
     ),
     content: toCategoryResult(
-      AuditCategory.CONTENT,
+      'CONTENT' as AuditCategory,
       data.content.score,
       dimensionsOf(data.content, CONTENT_KEYS),
       data.content.improvements,

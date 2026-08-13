@@ -1,4 +1,4 @@
-import { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
+import type { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
 
 import { CATEGORY_LABELS, impactScore } from '@/config/scoring';
 import { logger } from '@/lib/logger';
@@ -24,17 +24,17 @@ import { aiReportSchema, type AiReportPayload } from './schemas';
 const log = logger.child({ module: 'ai/report' });
 
 const SEVERITY_RANK: Record<Severity, number> = {
-  [Severity.CRITICAL]: 0,
-  [Severity.HIGH]: 1,
-  [Severity.MEDIUM]: 2,
-  [Severity.LOW]: 3,
-  [Severity.INFO]: 4,
+  CRITICAL: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+  INFO: 4,
 };
 
 const PRIORITY_RANK: Record<Priority, number> = {
-  [Priority.HIGH]: 0,
-  [Priority.MEDIUM]: 1,
-  [Priority.LOW]: 2,
+  HIGH: 0,
+  MEDIUM: 1,
+  LOW: 2,
 };
 
 export interface ReportInput {
@@ -83,10 +83,9 @@ function mergeRecommendations(
     if (seen.has(key)) continue;
     seen.add(key);
 
-    const category = (AuditCategory[candidate.category as keyof typeof AuditCategory] ??
-      AuditCategory.UX) as AuditCategory;
-    const difficulty = Difficulty[candidate.difficulty];
-    const priority = Priority[candidate.priority];
+    const category = (candidate.category ?? 'UX') as AuditCategory;
+    const difficulty = (candidate.difficulty ?? 'MEDIUM') as Difficulty;
+    const priority = (candidate.priority ?? 'MEDIUM') as Priority;
 
     merged.push({
       category,
@@ -97,9 +96,8 @@ function mergeRecommendations(
       estimatedMinutes: candidate.estimatedMinutes,
       priority,
       impactScore: impactScore({
-        severity:
-          priority === Priority.HIGH ? Severity.HIGH : priority === Priority.MEDIUM ? Severity.MEDIUM : Severity.LOW,
-        difficulty,
+        severity: (priority === 'HIGH' ? 'HIGH' : priority === 'MEDIUM' ? 'MEDIUM' : 'LOW') as Severity,
+        difficulty: difficulty as Difficulty,
       }),
       kind: candidate.kind,
     });
@@ -121,7 +119,7 @@ export function buildFallbackReport(input: ReportInput): GeneratedReport {
   const strongest = [...sorted].reverse().slice(0, 3);
 
   const criticalCount = input.issues.filter(
-    (issue) => issue.severity === Severity.CRITICAL || issue.severity === Severity.HIGH,
+    (issue) => issue.severity === 'CRITICAL' || issue.severity === 'HIGH',
   ).length;
 
   const trend =

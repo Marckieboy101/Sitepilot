@@ -1,4 +1,4 @@
-import { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
+import type { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
 
 /**
  * Scoring model.
@@ -11,36 +11,36 @@ import { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
  */
 
 export const CATEGORY_WEIGHTS: Record<AuditCategory, number> = {
-  [AuditCategory.SEO]: 1.25,
-  [AuditCategory.PERFORMANCE]: 1.25,
-  [AuditCategory.ACCESSIBILITY]: 1.0,
-  [AuditCategory.UX]: 1.0,
-  [AuditCategory.DESIGN]: 0.75,
-  [AuditCategory.CONTENT]: 0.75,
-  [AuditCategory.SECURITY]: 1.0,
-  [AuditCategory.TECHNICAL]: 1.0,
+  SEO: 1.25,
+  PERFORMANCE: 1.25,
+  ACCESSIBILITY: 1.0,
+  UX: 1.0,
+  DESIGN: 0.75,
+  CONTENT: 0.75,
+  SECURITY: 1.0,
+  TECHNICAL: 1.0,
 };
 
 export const CATEGORY_LABELS: Record<AuditCategory, string> = {
-  [AuditCategory.SEO]: 'SEO',
-  [AuditCategory.PERFORMANCE]: 'Performance',
-  [AuditCategory.ACCESSIBILITY]: 'Accessibility',
-  [AuditCategory.UX]: 'UX',
-  [AuditCategory.DESIGN]: 'Design',
-  [AuditCategory.CONTENT]: 'Content',
-  [AuditCategory.SECURITY]: 'Security',
-  [AuditCategory.TECHNICAL]: 'Technical',
+  SEO: 'SEO',
+  PERFORMANCE: 'Performance',
+  ACCESSIBILITY: 'Accessibility',
+  UX: 'UX',
+  DESIGN: 'Design',
+  CONTENT: 'Content',
+  SECURITY: 'Security',
+  TECHNICAL: 'Technical',
 };
 
 export const CATEGORY_DESCRIPTIONS: Record<AuditCategory, string> = {
-  [AuditCategory.SEO]: 'How well search engines can find, read and rank this page.',
-  [AuditCategory.PERFORMANCE]: 'How fast the page loads and becomes usable on real devices.',
-  [AuditCategory.ACCESSIBILITY]: 'Whether people using assistive technology can use the page.',
-  [AuditCategory.UX]: 'How easily a visitor can understand and act on the page.',
-  [AuditCategory.DESIGN]: 'Visual craft, consistency and how modern the page feels.',
-  [AuditCategory.CONTENT]: 'Clarity, depth and persuasiveness of the writing.',
-  [AuditCategory.SECURITY]: 'Transport security and protective HTTP headers.',
-  [AuditCategory.TECHNICAL]: 'Crawlability, redirects, link health and markup hygiene.',
+  SEO: 'How well search engines can find, read and rank this page.',
+  PERFORMANCE: 'How fast the page loads and becomes usable on real devices.',
+  ACCESSIBILITY: 'Whether people using assistive technology can use the page.',
+  UX: 'How easily a visitor can understand and act on the page.',
+  DESIGN: 'Visual craft, consistency and how modern the page feels.',
+  CONTENT: 'Clarity, depth and persuasiveness of the writing.',
+  SECURITY: 'Transport security and protective HTTP headers.',
+  TECHNICAL: 'Crawlability, redirects, link health and markup hygiene.',
 };
 
 export interface ScoredCategory {
@@ -247,31 +247,31 @@ export function metricToScore(value: number, median: number, p10: number): numbe
 
 /** Points deducted from a category score per issue of each severity. */
 export const SEVERITY_PENALTY: Record<Severity, number> = {
-  [Severity.CRITICAL]: 20,
-  [Severity.HIGH]: 12,
-  [Severity.MEDIUM]: 6,
-  [Severity.LOW]: 2,
-  [Severity.INFO]: 0,
+  CRITICAL: 20,
+  HIGH: 12,
+  MEDIUM: 6,
+  LOW: 2,
+  INFO: 0,
 };
 
 export const SEVERITY_LABELS: Record<Severity, string> = {
-  [Severity.CRITICAL]: 'Critical',
-  [Severity.HIGH]: 'High',
-  [Severity.MEDIUM]: 'Medium',
-  [Severity.LOW]: 'Low',
-  [Severity.INFO]: 'Info',
+  CRITICAL: 'Critical',
+  HIGH: 'High',
+  MEDIUM: 'Medium',
+  LOW: 'Low',
+  INFO: 'Info',
 };
 
 export const PRIORITY_LABELS: Record<Priority, string> = {
-  [Priority.HIGH]: 'High priority',
-  [Priority.MEDIUM]: 'Medium priority',
-  [Priority.LOW]: 'Low priority',
+  HIGH: 'High priority',
+  MEDIUM: 'Medium priority',
+  LOW: 'Low priority',
 };
 
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
-  [Difficulty.EASY]: 'Easy',
-  [Difficulty.MEDIUM]: 'Moderate',
-  [Difficulty.HARD]: 'Involved',
+  EASY: 'Easy',
+  MEDIUM: 'Moderate',
+  HARD: 'Involved',
 };
 
 /**
@@ -313,16 +313,16 @@ export function impactScore(input: {
   categoryWeight?: number;
 }): number {
   const severityValue: Record<Severity, number> = {
-    [Severity.CRITICAL]: 100,
-    [Severity.HIGH]: 78,
-    [Severity.MEDIUM]: 52,
-    [Severity.LOW]: 28,
-    [Severity.INFO]: 10,
+    CRITICAL: 100,
+    HIGH: 78,
+    MEDIUM: 52,
+    LOW: 28,
+    INFO: 10,
   };
   const effortDivisor: Record<Difficulty, number> = {
-    [Difficulty.EASY]: 1,
-    [Difficulty.MEDIUM]: 1.35,
-    [Difficulty.HARD]: 1.9,
+    EASY: 1,
+    MEDIUM: 1.35,
+    HARD: 1.9,
   };
 
   const base = severityValue[input.severity] * (input.categoryWeight ?? 1);
@@ -330,12 +330,12 @@ export function impactScore(input: {
 }
 
 export function priorityFromSeverity(severity: Severity): Priority {
-  if (severity === Severity.CRITICAL || severity === Severity.HIGH) return Priority.HIGH;
-  if (severity === Severity.MEDIUM) return Priority.MEDIUM;
-  return Priority.LOW;
+  if (severity === 'CRITICAL' || severity === 'HIGH') return 'HIGH' as Priority;
+  if (severity === 'MEDIUM') return 'MEDIUM' as Priority;
+  return 'LOW' as Priority;
 }
 
 /** A quick win is high-impact and cheap to do. */
 export function isQuickWin(difficulty: Difficulty, estimatedMinutes: number): boolean {
-  return difficulty === Difficulty.EASY && estimatedMinutes <= 120;
+  return difficulty === 'EASY' && estimatedMinutes <= 120;
 }

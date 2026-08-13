@@ -1,4 +1,4 @@
-import { Plan } from '@prisma/client';
+import type { Plan } from '@prisma/client';
 
 /**
  * Plan catalogue — the single source of truth for entitlements.
@@ -58,8 +58,8 @@ const NO_FEATURES: Record<FeatureKey, boolean> = {
 };
 
 export const PLANS: Record<Plan, PlanDefinition> = {
-  [Plan.FREE]: {
-    id: Plan.FREE,
+  FREE: {
+    id: 'FREE',
     name: 'Free',
     tagline: 'Audit your site and see what AI finds.',
     monthlyPriceCents: 0,
@@ -83,8 +83,8 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     ],
   },
 
-  [Plan.PRO]: {
-    id: Plan.PRO,
+  PRO: {
+    id: 'PRO',
     name: 'Pro',
     tagline: 'Everything you need to ship a better website.',
     monthlyPriceCents: 2900,
@@ -122,8 +122,8 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     ],
   },
 
-  [Plan.AGENCY]: {
-    id: Plan.AGENCY,
+  AGENCY: {
+    id: 'AGENCY',
     name: 'Agency',
     tagline: 'Run audits for every client, under your own brand.',
     monthlyPriceCents: 9900,
@@ -161,7 +161,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
   },
 };
 
-export const PLAN_ORDER: Plan[] = [Plan.FREE, Plan.PRO, Plan.AGENCY];
+export const PLAN_ORDER: Plan[] = ['FREE', 'PRO', 'AGENCY'];
 
 export function planDefinition(plan: Plan): PlanDefinition {
   return PLANS[plan];

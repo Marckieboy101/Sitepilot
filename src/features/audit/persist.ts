@@ -1,4 +1,4 @@
-import { AuditCategory, AuditStatus, Prisma, RecommendationKind, ScreenshotKind } from '@prisma/client';
+import type { AuditCategory, AuditStatus, Prisma, ScreenshotKind } from '@prisma/client';
 
 import { CATEGORY_WEIGHTS } from '@/config/scoring';
 import { db } from '@/lib/db';
@@ -105,7 +105,7 @@ export async function previousScoreFor(websiteId: string, excludeAuditId?: strin
 }
 
 function screenshotKind(kind: string): ScreenshotKind {
-  return (ScreenshotKind[kind as keyof typeof ScreenshotKind] ?? ScreenshotKind.DESKTOP_VIEWPORT) as ScreenshotKind;
+  return (kind ?? 'DESKTOP_VIEWPORT') as ScreenshotKind;
 }
 
 /**
@@ -326,7 +326,7 @@ export async function persistAudit(input: PersistInput): Promise<string> {
           recommendations: {
             create: result.recommendations.map((recommendation, index) => ({
               category: recommendation.category,
-              kind: RecommendationKind[recommendation.kind],
+              kind: recommendation.kind,
               priority: recommendation.priority,
               title: recommendation.title.slice(0, 300),
               explanation: recommendation.explanation,
@@ -391,12 +391,12 @@ export async function notifyAuditComplete(input: {
 }
 
 export const AUDIT_CATEGORY_ORDER: AuditCategory[] = [
-  AuditCategory.SEO,
-  AuditCategory.PERFORMANCE,
-  AuditCategory.ACCESSIBILITY,
-  AuditCategory.UX,
-  AuditCategory.DESIGN,
-  AuditCategory.CONTENT,
-  AuditCategory.SECURITY,
-  AuditCategory.TECHNICAL,
+  'SEO',
+  'PERFORMANCE',
+  'ACCESSIBILITY',
+  'UX',
+  'DESIGN',
+  'CONTENT',
+  'SECURITY',
+  'TECHNICAL',
 ];

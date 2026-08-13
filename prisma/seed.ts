@@ -215,6 +215,11 @@ const RECOMMENDATION_POOL = [
 async function main() {
   console.log('Seeding SitePilot AI…');
 
+  if (!process.env.DATABASE_URL) {
+    console.warn('DATABASE_URL not set — skipping seed. Set DATABASE_URL to run seeds.');
+    return;
+  }
+
   // Remove any previous seed run so this is safe to repeat.
   const existing = await db.user.findUnique({ where: { email: SEED_EMAIL }, select: { id: true } });
   if (existing) {

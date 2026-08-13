@@ -2,7 +2,7 @@
   "name": "sitepilot-ai",
   "version": "1.0.0",
   "private": true,
-  "description": "SitePilot AI — AI-powered website auditing platform",
+  "description": "Momo — AI-powered website auditing platform",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",

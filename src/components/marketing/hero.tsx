@@ -91,7 +91,7 @@ export function Hero() {
             variants={rise}
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground"
           >
-            SitePilot AI runs a full technical audit — SEO, Core Web Vitals, accessibility, security —
+            Momo runs a full technical audit — SEO, Core Web Vitals, accessibility, security —
             then explains the results in plain English and tells you what to fix first.
           </motion.p>
 

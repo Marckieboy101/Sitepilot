@@ -6,7 +6,7 @@ import { ForgotPasswordForm } from '@/components/auth/forms';
 
 export const metadata: Metadata = {
   title: 'Reset your password',
-  description: 'Request a password reset link for your SitePilot AI account.',
+  description: 'Request a password reset link for your Momo account.',
 };
 
 export default function ResetPasswordPage() {

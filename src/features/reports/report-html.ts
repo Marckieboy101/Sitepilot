@@ -19,7 +19,7 @@ import type { AuditCategory, Difficulty, Priority, Severity } from '@prisma/clie
 
 export interface ReportBranding {
   organizationName: string;
-  /** Agency plan: replaces SitePilot's mark and accent. */
+  /** Agency plan: replaces Momo's mark and accent. */
   logoUrl: string | null;
   brandColor: string | null;
   footerText: string | null;
@@ -114,7 +114,7 @@ function categoryBar(label: string, score: number): string {
 
 export function renderReportHtml(data: ReportData, branding: ReportBranding): string {
   const accent = branding.whiteLabel && branding.brandColor ? branding.brandColor : '#6366f1';
-  const productName = branding.whiteLabel ? branding.organizationName : 'SitePilot AI';
+  const productName = branding.whiteLabel ? branding.organizationName : 'Momo';
 
   const auditedAt = data.auditedAt.toLocaleDateString('en-US', {
     year: 'numeric',

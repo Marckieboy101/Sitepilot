@@ -213,7 +213,7 @@ const RECOMMENDATION_POOL = [
 ];
 
 async function main() {
-  console.log('Seeding SitePilot AI…');
+  console.log('Seeding Momo…');
 
   if (!process.env.DATABASE_URL) {
     console.warn('DATABASE_URL not set — skipping seed. Set DATABASE_URL to run seeds.');

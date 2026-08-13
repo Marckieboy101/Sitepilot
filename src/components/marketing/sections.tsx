@@ -354,7 +354,7 @@ export function AiFeatures() {
               The part other audit tools <span className="text-gradient">leave out</span>
             </>
           }
-          description="Most tools hand you a list of numbers. SitePilot tells you what they mean for your business and what to do about them."
+          description="Most tools hand you a list of numbers. Momo tells you what they mean for your business and what to do about them."
         />
 
         <div className="mt-16 grid items-start gap-12 lg:grid-cols-2">
@@ -384,7 +384,7 @@ export function AiFeatures() {
             <Card variant="glass" className="overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-border/60 px-5 py-3.5">
                 <Sparkles className="size-4 text-primary" aria-hidden="true" />
-                <span className="text-sm font-medium">SitePilot Assistant</span>
+                <span className="text-sm font-medium">Momo Assistant</span>
                 <Badge variant="success" className="ml-auto">
                   Knows your audit
                 </Badge>
@@ -620,7 +620,7 @@ const FAQS = [
   {
     question: 'Do I need to install anything on my website?',
     answer:
-      'No. There is no script, no plugin and no DNS change. SitePilot fetches and renders your page from the outside, exactly the way a visitor or a search engine crawler would.',
+      'No. There is no script, no plugin and no DNS change. Momo fetches and renders your page from the outside, exactly the way a visitor or a search engine crawler would.',
   },
   {
     question: 'Where do the performance numbers come from?',

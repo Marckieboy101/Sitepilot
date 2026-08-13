@@ -4,7 +4,7 @@ import { LegalPage, LEGAL_SECTIONS } from '@/components/marketing/legal';
 
 export const metadata: Metadata = {
   title: 'Privacy policy',
-  description: 'How SitePilot AI collects, uses and protects your data.',
+  description: 'How Momo collects, uses and protects your data.',
 };
 
 export default function PrivacyPage() {

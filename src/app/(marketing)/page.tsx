@@ -13,7 +13,7 @@ import {
 } from '@/components/marketing/sections';
 
 export const metadata: Metadata = {
-  title: 'SitePilot AI — Audit any website in 60 seconds',
+  title: 'WebDataScout — Audit any website in 60 seconds',
   description:
     'Run a complete technical audit — SEO, Core Web Vitals, accessibility and security — then let AI explain the results in plain English and tell you what to fix first.',
 };

@@ -65,7 +65,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     monthlyPriceCents: 0,
     yearlyPriceCents: 0,
     limits: {
-      auditsPerMonth: 3,
+      auditsPerMonth: 1,
       projects: 1,
       websitesPerProject: 3,
       teamMembers: 1,
@@ -75,7 +75,7 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     },
     features: { ...NO_FEATURES },
     bullets: [
-      '3 audits per month',
+      '1 audit per month',
       'Basic AI report',
       'SEO, performance & accessibility scores',
       '1 project, up to 3 websites',

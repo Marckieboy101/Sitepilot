@@ -101,6 +101,7 @@ export async function startAuditAction(input: StartAuditInput): Promise<ActionRe
     const result = await runAudit({
       url: parsed.data.url,
       device: parsed.data.device,
+      plan: session.plan,
     });
 
     const previousScore = await previousScoreFor(website.id, auditId);

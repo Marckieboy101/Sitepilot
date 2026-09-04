@@ -172,8 +172,8 @@ describe('renderReportHtml', () => {
     expect(html).not.toMatch(/<script\s+src=/);
   });
 
-  it('shows SitePilot branding by default and the org brand under white-label', () => {
-    expect(renderReportHtml(data, branding)).toContain('SitePilot AI');
+  it('shows WebDataScout branding by default and the org brand under white-label', () => {
+    expect(renderReportHtml(data, branding)).toContain('WebDataScout');
 
     const whiteLabelled = renderReportHtml(data, {
       ...branding,

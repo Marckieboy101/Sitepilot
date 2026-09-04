@@ -80,7 +80,7 @@ export async function GET(
     const whiteLabel = PLANS[entitlements.plan].features.whiteLabel;
 
     const html = renderReportHtml(data, {
-      organizationName: organization?.name ?? 'SitePilot AI',
+      organizationName: organization?.name ?? 'WebDataScout',
       logoUrl: whiteLabel ? (organization?.brandLogoUrl ?? null) : null,
       brandColor: whiteLabel ? (organization?.brandColor ?? null) : null,
       footerText: whiteLabel ? (organization?.reportFooterText ?? null) : null,

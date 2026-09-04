@@ -54,6 +54,8 @@ export interface RunAuditOptions {
   fast?: boolean;
   /** Skip the AI pass (e.g. the caller's plan doesn't include it). */
   skipAi?: boolean;
+  /** Plan-specific report mode for free-tier users. */
+  plan?: 'FREE' | 'PRO' | 'AGENCY';
   signal?: AbortSignal;
 }
 
@@ -100,7 +102,7 @@ export interface AuditRunResult {
 }
 
 export async function runAudit(options: RunAuditOptions): Promise<AuditRunResult> {
-  const { url, device = 'MOBILE', fast = false, skipAi = false, signal } = options;
+  const { url, device = 'MOBILE', fast = false, skipAi = false, plan = 'PRO', signal } = options;
   const started = Date.now();
   const warnings: string[] = [];
   const runLog = log.child({ url, device });
@@ -235,15 +237,18 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditRunResult
   const recommendations = categories.flatMap((category) => category.recommendations);
 
   // -- 6. Report -------------------------------------------------------------
-  const report = await generateReport({
-    url: context.page.finalUrl,
-    overallScore,
-    previousScore: null, // filled by the caller, which knows the history
-    categories,
-    issues,
-    recommendations,
-    aiFindings,
-  });
+  const report = await generateReport(
+    {
+      url: context.page.finalUrl,
+      overallScore,
+      previousScore: null, // filled by the caller, which knows the history
+      categories,
+      issues,
+      recommendations,
+      aiFindings,
+    },
+    plan,
+  );
 
   const durationMs = Date.now() - started;
   runLog.info('audit finished', { overallScore, durationMs, warnings: warnings.length });

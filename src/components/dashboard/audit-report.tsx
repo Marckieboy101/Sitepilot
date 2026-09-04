@@ -49,12 +49,14 @@ export function ExecutiveSummary({
   weaknesses,
   longTermOutlook,
   model,
+  isFreePlan = false,
 }: {
   summary: string;
   strengths: string[];
   weaknesses: string[];
   longTermOutlook: string | null;
   model: string;
+  isFreePlan?: boolean;
 }) {
   return (
     <Card>
@@ -119,7 +121,18 @@ export function ExecutiveSummary({
               <TrendingUp className="size-4 text-primary" aria-hidden="true" />
               Longer term
             </h3>
-            <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">{longTermOutlook}</p>
+            <div className={isFreePlan ? 'relative mt-2.5 overflow-hidden rounded-lg border border-amber-500/40 bg-amber-500/5 p-3' : 'mt-2.5'}>
+              <p className={isFreePlan ? 'select-none text-sm leading-relaxed text-muted-foreground blur-sm' : 'text-sm leading-relaxed text-muted-foreground'}>
+                {longTermOutlook}
+              </p>
+              {isFreePlan && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/25 backdrop-blur-[1.5px]">
+                  <span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                    Upgrade to Pro to unlock the full detail
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

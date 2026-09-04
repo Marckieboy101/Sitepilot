@@ -91,7 +91,7 @@ export function Hero() {
             variants={rise}
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground"
           >
-            SitePilot AI runs a full technical audit — SEO, Core Web Vitals, accessibility, security —
+            WebDataScout runs a full technical audit — SEO, Core Web Vitals, accessibility, security —
             then explains the results in plain English and tells you what to fix first.
           </motion.p>
 
@@ -197,7 +197,7 @@ function DashboardMockup() {
           <span className="size-2.5 rounded-full bg-warning/60" />
           <span className="size-2.5 rounded-full bg-success/60" />
           <div className="ml-3 flex-1 rounded-md bg-muted/60 px-3 py-1 font-mono text-[0.6875rem] text-muted-foreground">
-            app.sitepilot.ai/dashboard
+            app.webdatascout.ai/dashboard
           </div>
         </div>
 

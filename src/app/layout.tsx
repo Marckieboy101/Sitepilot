@@ -21,15 +21,15 @@ const mono = JetBrains_Mono({
   display: 'swap',
 });
 
-const title = 'SitePilot AI — AI-powered website audits';
+const title = 'WebDataScout — AI-powered website audits';
 const description =
-  'Audit any website in 60 seconds. SitePilot AI combines Lighthouse, axe-core and deep technical analysis with AI that explains what to fix, why it matters, and what to do first.';
+  'Audit any website in 60 seconds. WebDataScout combines Lighthouse, axe-core and deep technical analysis with AI that explains what to fix, why it matters, and what to do first.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(clientEnv.NEXT_PUBLIC_APP_URL),
-  title: { default: title, template: '%s · SitePilot AI' },
+  title: { default: title, template: '%s · WebDataScout' },
   description,
-  applicationName: 'SitePilot AI',
+  applicationName: 'WebDataScout',
   keywords: [
     'website audit',
     'SEO analysis',
@@ -39,10 +39,10 @@ export const metadata: Metadata = {
     'AI website analysis',
     'conversion optimisation',
   ],
-  authors: [{ name: 'SitePilot AI' }],
+  authors: [{ name: 'WebDataScout' }],
   openGraph: {
     type: 'website',
-    siteName: 'SitePilot AI',
+    siteName: 'WebDataScout',
     title,
     description,
     url: clientEnv.NEXT_PUBLIC_APP_URL,

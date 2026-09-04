@@ -7,7 +7,7 @@ import { AuthDivider, GoogleButton } from '@/components/auth/google-button';
 
 export const metadata: Metadata = {
   title: 'Create your account',
-  description: 'Start auditing your website with SitePilot AI — three full audits free.',
+  description: 'Start auditing your website with WebDataScout — three full audits free.',
 };
 
 export default function SignUpPage() {

@@ -1,11 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7C5CFF"/>
-      <stop offset="0.55" stop-color="#B15CFF"/>
-      <stop offset="1" stop-color="#22B8F0"/>
+    <linearGradient id="wds-mark-gradient" x1="52" y1="40" x2="160" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2aa6ff"/>
+      <stop offset="0.48" stop-color="#1290f0"/>
+      <stop offset="1" stop-color="#0c66d8"/>
     </linearGradient>
   </defs>
-  <rect width="32" height="32" rx="8" fill="url(#g)"/>
-  <path d="M23.5 8.5 9.2 14.1a.6.6 0 0 0-.05 1.09l5.36 2.63 2.63 5.36a.6.6 0 0 0 1.09-.05L23.5 8.5Z" fill="#fff" fill-opacity="0.95"/>
+
+  <rect width="200" height="200" rx="36" fill="#04070d"/>
+  <circle cx="98" cy="96" r="74" stroke="#1f2f4f" stroke-width="12"/>
+  <path d="M24 96h148M98 22v148" stroke="#1f2f4f" stroke-width="10" stroke-linecap="round"/>
+  <path d="M35 57c18 18 31 35 54 42 24 7 39 10 69 18-12 15-25 26-41 34-16 8-33 12-60 12-12-20-16-40-22-106Z" stroke="#1f2f4f" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M92 104 156 52 118 81 76 156 92 104Z" fill="url(#wds-mark-gradient)"/>
+  <path d="M118 81 76 156" stroke="#0d74e8" stroke-width="8" stroke-linecap="round" opacity="0.35"/>
 </svg>

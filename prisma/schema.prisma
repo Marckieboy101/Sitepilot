@@ -1,4 +1,4 @@
-// SitePilot AI — PostgreSQL schema
+// WebDataScout — PostgreSQL schema
 //
 // Design notes
 // - `User.id` mirrors the Supabase `auth.users` UUID so the app database and the

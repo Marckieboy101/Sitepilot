@@ -76,11 +76,11 @@ describe('plan catalogue', () => {
     }
   });
 
-  it('gives the free plan no paid features and a finite audit allowance', () => {
+  it('gives the free plan no paid features and a single monthly audit allowance', () => {
     for (const feature of ALL_FEATURES) {
       expect(PLANS.FREE.features[feature], `free plan should not include ${feature}`).toBe(false);
     }
-    expect(PLANS.FREE.limits.auditsPerMonth).toBe(3);
+    expect(PLANS.FREE.limits.auditsPerMonth).toBe(1);
   });
 
   it('makes yearly cheaper than twelve monthly payments on every paid plan', () => {
@@ -125,7 +125,7 @@ describe('accessors', () => {
   });
 
   it('planLimit returns null for unlimited', () => {
-    expect(planLimit(Plan.FREE, 'auditsPerMonth')).toBe(3);
+    expect(planLimit(Plan.FREE, 'auditsPerMonth')).toBe(1);
     expect(planLimit(Plan.PRO, 'auditsPerMonth')).toBeNull();
     expect(planLimit(Plan.AGENCY, 'projects')).toBeNull();
   });

@@ -158,6 +158,17 @@ export default async function AuditDetailPage({ params }: PageProps) {
         </div>
 
         <TabsContent value="report" className="space-y-5">
+          {session.plan === 'FREE' && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                Free report: basic AI summary only
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Upgrade to Pro to unlock the full AI breakdown, deeper recommendations and the hidden details behind each score.
+              </p>
+            </div>
+          )}
+
           {audit.aiReport ? (
             <ExecutiveSummary
               summary={audit.aiReport.executiveSummary}
@@ -165,6 +176,7 @@ export default async function AuditDetailPage({ params }: PageProps) {
               weaknesses={audit.aiReport.weaknesses}
               longTermOutlook={audit.aiReport.longTermOutlook}
               model={audit.aiReport.model}
+              isFreePlan={session.plan === 'FREE'}
             />
           ) : (
             <Card>

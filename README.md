@@ -1,4 +1,4 @@
-# SitePilot AI
+# WebDataScout
 
 AI-powered website auditing. Runs a full technical audit — SEO, Core Web Vitals,
 accessibility, security, link health — then uses an LLM to judge UX, design and

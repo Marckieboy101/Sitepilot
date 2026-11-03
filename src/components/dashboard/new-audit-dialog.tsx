@@ -221,7 +221,7 @@ export function NewAuditDialog({
 
             <Button type="submit" variant="gradient" size="lg" className="w-full" disabled={!url.trim()}>
               <Sparkles className="size-4" />
-              Run audit
+              Scan your site
             </Button>
           </form>
         )}
@@ -256,7 +256,7 @@ export function NewAuditButton({
         {children ?? (
           <>
             <Sparkles className="size-4" />
-            Run an audit
+            Scan your site
           </>
         )}
       </Button>

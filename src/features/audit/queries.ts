@@ -175,6 +175,7 @@ export const getAuditDetail = cache(async (auditId: string, organizationId: stri
       url: true,
       status: true,
       device: true,
+      previewOnly: true,
       overallScore: true,
       previousScore: true,
       createdAt: true,

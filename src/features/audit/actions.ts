@@ -1,7 +1,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { headers } from 'next/headers';
 
 import { AuditStatus } from '@prisma/client';
 
@@ -11,7 +10,15 @@ import { logger } from '@/lib/logger';
 import { RATE_LIMITS, enforceRateLimit } from '@/lib/rate-limit';
 
 import { requireSession } from '../auth/session';
-import { consumeQuota, refundQuota } from '../billing/quota';
+import {
+  consumeQuota,
+  consumeScanCredit,
+  getEntitlements,
+  refundQuota,
+  refundScanCredit,
+  releaseFreePreview,
+  reserveFreePreview,
+} from '../billing/quota';
 
 import { runAudit } from './engine';
 import {
@@ -23,10 +30,8 @@ import {
   resolveWebsite,
 } from './persist';
 import {
-  publicAuditSchema,
   startAuditSchema,
   updateRecommendationSchema,
-  type PublicAuditInput,
   type StartAuditInput,
   type UpdateRecommendationInput,
 } from './schemas';
@@ -46,19 +51,6 @@ const log = logger.child({ module: 'audit/actions' });
  * would enqueue instead of awaiting `executeAudit`, and nothing else changes.
  */
 
-async function clientIp(): Promise<string> {
-  try {
-    const headerList = await headers();
-    return (
-      headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-      headerList.get('x-real-ip') ??
-      'unknown'
-    );
-  } catch {
-    return 'unknown';
-  }
-}
-
 export interface StartedAudit {
   auditId: string;
   overallScore: number;
@@ -71,6 +63,9 @@ export async function startAuditAction(input: StartAuditInput): Promise<ActionRe
 
   let auditId: string | null = null;
   let quotaConsumed = false;
+  let previewReserved = false;
+  let scanCreditConsumed = false;
+  let previewOnly = false;
 
   try {
     enforceRateLimit(`audit:${session.organizationId}`, RATE_LIMITS.audit);
@@ -80,16 +75,41 @@ export async function startAuditAction(input: StartAuditInput): Promise<ActionRe
       throw errors.validation(parsed.error.issues[0]?.message ?? 'Enter a valid website URL.');
     }
 
-    // Reserve the credit before doing any expensive work, and refund it below
-    // if the run fails — the user should not pay for our failures.
-    await consumeQuota(session.organizationId, 'auditsRun');
-    quotaConsumed = true;
-
+    const entitlements = await getEntitlements(session.organizationId);
     const projectId = parsed.data.projectId ?? (await defaultProjectId(session.organizationId));
 
     const website = parsed.data.websiteId
       ? await assertWebsiteAccess(parsed.data.websiteId, session.organizationId)
       : await resolveWebsite({ projectId, url: parsed.data.url });
+
+    if (entitlements.plan === 'FREE') {
+      const organization = await db.organization.findUnique({
+        where: { id: session.organizationId },
+        select: { freePreviewUsed: true },
+      });
+      if (!organization) throw errors.notFound('Workspace');
+
+      if (!organization.freePreviewUsed) {
+        previewReserved = await reserveFreePreview(session.organizationId);
+        if (!previewReserved) {
+          throw errors.quotaExceeded('Your free preview is already being used. Full audits start at $5.', {
+            resource: 'freePreview',
+          });
+        }
+        previewOnly = true;
+      } else {
+        scanCreditConsumed = await consumeScanCredit(session.organizationId);
+        if (!scanCreditConsumed) {
+          throw errors.quotaExceeded(
+            'Your free preview has been used. Buy a full audit for $5, then $8 per audit, or choose a plan.',
+            { resource: 'auditsRun', plan: entitlements.plan },
+          );
+        }
+      }
+    } else {
+      await consumeQuota(session.organizationId, 'auditsRun');
+      quotaConsumed = true;
+    }
 
     auditId = await createPendingAudit({
       websiteId: website.id,
@@ -101,12 +121,14 @@ export async function startAuditAction(input: StartAuditInput): Promise<ActionRe
     const result = await runAudit({
       url: parsed.data.url,
       device: parsed.data.device,
-      plan: session.plan,
+      plan: previewOnly ? 'FREE' : entitlements.plan === 'FREE' ? 'PRO' : entitlements.plan,
+      fast: previewOnly,
+      skipAi: previewOnly,
     });
 
     const previousScore = await previousScoreFor(website.id, auditId);
 
-    await persistAudit({ auditId, websiteId: website.id, result });
+    await persistAudit({ auditId, websiteId: website.id, result, previewOnly });
 
     await notifyAuditComplete({
       userId: session.userId,
@@ -127,60 +149,9 @@ export async function startAuditAction(input: StartAuditInput): Promise<ActionRe
 
     if (auditId) await markAuditFailed(auditId, message);
     if (quotaConsumed) await refundQuota(session.organizationId, 'auditsRun');
+    if (previewReserved) await releaseFreePreview(session.organizationId);
+    if (scanCreditConsumed) await refundScanCredit(session.organizationId);
 
-    return fail(error);
-  }
-}
-
-/**
- * Anonymous audit for the landing page.
- *
- * Deliberately reduced: no browser, no link probing, no persistence. It exists
- * to prove the product works in under 20 seconds, and the full run is what
- * signing up buys.
- */
-export interface PublicAuditResult {
-  url: string;
-  overallScore: number;
-  categories: Array<{ category: string; score: number; summary: string }>;
-  topIssues: Array<{ severity: string; title: string; category: string }>;
-  quickWins: Array<{ title: string; expectedImpact: string }>;
-  executiveSummary: string;
-}
-
-export async function publicAuditAction(input: PublicAuditInput): Promise<ActionResult<PublicAuditResult>> {
-  try {
-    enforceRateLimit(`public-audit:${await clientIp()}`, RATE_LIMITS.publicAudit);
-
-    const parsed = publicAuditSchema.safeParse(input);
-    if (!parsed.success) {
-      throw errors.validation(parsed.error.issues[0]?.message ?? 'Enter a valid website URL.');
-    }
-
-    const result = await runAudit({ url: parsed.data.url, device: 'MOBILE', fast: true, skipAi: true });
-
-    return ok({
-      url: result.finalUrl,
-      overallScore: result.overallScore,
-      categories: result.categories.map((category) => ({
-        category: category.category,
-        score: category.score,
-        summary: category.summary,
-      })),
-      topIssues: result.issues
-        .filter((issue) => issue.severity === 'CRITICAL' || issue.severity === 'HIGH')
-        .slice(0, 5)
-        .map((issue) => ({ severity: issue.severity, title: issue.title, category: issue.category })),
-      quickWins: result.recommendations
-        .filter((recommendation) => recommendation.kind === 'QUICK_WIN')
-        .slice(0, 3)
-        .map((recommendation) => ({
-          title: recommendation.title,
-          expectedImpact: recommendation.expectedImpact,
-        })),
-      executiveSummary: result.report.executiveSummary,
-    });
-  } catch (error) {
     return fail(error);
   }
 }

@@ -58,6 +58,54 @@ export default async function AuditDetailPage({ params }: PageProps) {
     return <RunningAudit url={audit.url} />;
   }
 
+  if (audit.previewOnly) {
+    return (
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Button variant="ghost" size="sm" asChild className="-ml-2">
+            <Link href="/dashboard/audits">
+              <ArrowLeft className="size-3.5" /> All audits
+            </Link>
+          </Button>
+          <h1 className="truncate text-2xl font-semibold tracking-[-0.025em]">{displayUrl(audit.url, 46)}</h1>
+          <p className="text-sm text-muted-foreground">Limited preview — full audit details are not included.</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Preview statistics</CardTitle>
+            <CardDescription>Your one free signup preview includes scores only.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center gap-4">
+              <ScoreRing score={audit.overallScore ?? 0} size={88} strokeWidth={7} showBand={false} />
+              <p className="text-sm text-muted-foreground">Overall website score</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {audit.categoryScores.map((entry) => (
+                <CategoryCard
+                  key={entry.category}
+                  label={CATEGORY_LABELS[entry.category]}
+                  score={entry.score}
+                  description="Category score"
+                />
+              ))}
+            </div>
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <p className="text-sm font-medium">Unlock your first full audit for $5</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Future audits are $8 each, or choose a plan for ongoing access.
+              </p>
+              <Button asChild variant="gradient" className="mt-4">
+                <Link href="/dashboard/billing">See scan and plan options</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const warnings = Array.isArray(audit.warnings) ? (audit.warnings as string[]) : [];
   const categoryMap = Object.fromEntries(
     audit.categoryScores.map((entry) => [entry.category, entry]),
@@ -158,17 +206,6 @@ export default async function AuditDetailPage({ params }: PageProps) {
         </div>
 
         <TabsContent value="report" className="space-y-5">
-          {session.plan === 'FREE' && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-4">
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                Free report: basic AI summary only
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Upgrade to Pro to unlock the full AI breakdown, deeper recommendations and the hidden details behind each score.
-              </p>
-            </div>
-          )}
-
           {audit.aiReport ? (
             <ExecutiveSummary
               summary={audit.aiReport.executiveSummary}
@@ -176,7 +213,6 @@ export default async function AuditDetailPage({ params }: PageProps) {
               weaknesses={audit.aiReport.weaknesses}
               longTermOutlook={audit.aiReport.longTermOutlook}
               model={audit.aiReport.model}
-              isFreePlan={session.plan === 'FREE'}
             />
           ) : (
             <Card>

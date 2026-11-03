@@ -1,4 +1,4 @@
-// WebDataScout — PostgreSQL schema
+// GetTravik — PostgreSQL schema
 //
 // Design notes
 // - `User.id` mirrors the Supabase `auth.users` UUID so the app database and the
@@ -40,6 +40,11 @@ enum SubscriptionStatus {
   INCOMPLETE_EXPIRED
   UNPAID
   PAUSED
+}
+
+enum MolliePaymentType {
+  SCAN_CREDIT
+  PLAN
 }
 
 enum AuditStatus {
@@ -187,15 +192,20 @@ model Organization {
   brandLogoUrl     String?
   reportFooterText String?
 
+  freePreviewUsed   Boolean @default(false)
+  scanCredits       Int     @default(0)
+  paidScanPurchases Int     @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members      OrganizationMember[]
-  projects     Project[]
-  subscription Subscription?
-  usageRecords UsageRecord[]
-  invoices     Invoice[]
-  apiKeys      ApiKey[]
+  members        OrganizationMember[]
+  projects       Project[]
+  subscription   Subscription?
+  usageRecords   UsageRecord[]
+  invoices       Invoice[]
+  apiKeys        ApiKey[]
+  molliePayments MolliePayment[]
 
   @@index([ownerId])
   @@map("organizations")
@@ -295,6 +305,26 @@ model Invoice {
   @@map("invoices")
 }
 
+model MolliePayment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  molliePaymentId String?           @unique
+  type            MolliePaymentType
+  plan            Plan?
+  interval        String?
+  amountCents     Int
+  currency        String
+  status          String            @default("pending")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, createdAt])
+  @@map("mollie_payments")
+}
+
 // ---------------------------------------------------------------------------
 // Projects & websites
 // ---------------------------------------------------------------------------
@@ -361,9 +391,10 @@ model Audit {
   requestedById String? @db.Uuid
   requestedBy   User?   @relation(fields: [requestedById], references: [id], onDelete: SetNull)
 
-  url    String
-  status AuditStatus    @default(QUEUED)
-  device DeviceStrategy @default(MOBILE)
+  url         String
+  status      AuditStatus    @default(QUEUED)
+  device      DeviceStrategy @default(MOBILE)
+  previewOnly Boolean        @default(false)
 
   /// Weighted roll-up of the category scores. Null until the run completes.
   overallScore  Int?

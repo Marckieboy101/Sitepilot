@@ -12,7 +12,7 @@ import { errors } from '@/lib/errors';
  * same request that consumes the resource, which means two concurrent audits
  * from one organization cannot both slip past the last remaining credit.
  *
- * Usage is recorded per UTC calendar month regardless of the Stripe billing
+ * Usage is recorded per UTC calendar month regardless of the billing
  * anchor. Aligning to the subscription period would be more "correct" but
  * produces a quota that resets on a date the user cannot predict, and support
  * tickets about it cost more than the handful of extra audits it grants.
@@ -85,8 +85,12 @@ export async function getEntitlements(organizationId: string): Promise<Entitleme
     }),
   ]);
 
-  const status = subscription?.status ?? SubscriptionStatus.ACTIVE;
-  const active = ACTIVE_STATUSES.has(status);
+  const storedStatus = subscription?.status ?? SubscriptionStatus.ACTIVE;
+  const periodExpired = Boolean(
+    subscription?.currentPeriodEnd && subscription.currentPeriodEnd.getTime() <= Date.now(),
+  );
+  const active = ACTIVE_STATUSES.has(storedStatus) && !periodExpired;
+  const status = periodExpired ? SubscriptionStatus.CANCELED : storedStatus;
   // A lapsed paid subscription falls back to Free entitlements rather than
   // losing access entirely — the data stays readable, the quota tightens.
   const plan = active ? (subscription?.plan ?? Plan.FREE) : Plan.FREE;
@@ -208,6 +212,36 @@ export async function refundQuota(
     .catch(() => {
       // No record means nothing was consumed; nothing to refund.
     });
+}
+
+export async function reserveFreePreview(organizationId: string): Promise<boolean> {
+  const reserved = await db.organization.updateMany({
+    where: { id: organizationId, freePreviewUsed: false },
+    data: { freePreviewUsed: true },
+  });
+  return reserved.count === 1;
+}
+
+export async function releaseFreePreview(organizationId: string): Promise<void> {
+  await db.organization.updateMany({
+    where: { id: organizationId, freePreviewUsed: true },
+    data: { freePreviewUsed: false },
+  });
+}
+
+export async function consumeScanCredit(organizationId: string): Promise<boolean> {
+  const consumed = await db.organization.updateMany({
+    where: { id: organizationId, scanCredits: { gt: 0 } },
+    data: { scanCredits: { decrement: 1 } },
+  });
+  return consumed.count === 1;
+}
+
+export async function refundScanCredit(organizationId: string): Promise<void> {
+  await db.organization.update({
+    where: { id: organizationId },
+    data: { scanCredits: { increment: 1 } },
+  });
 }
 
 /** Countable resource limits (projects, websites, members) checked on create. */

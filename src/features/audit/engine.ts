@@ -52,7 +52,7 @@ export interface RunAuditOptions {
   device?: 'MOBILE' | 'DESKTOP';
   /** Skip screenshots and link probing for the fast anonymous preview. */
   fast?: boolean;
-  /** Skip the AI pass (e.g. the caller's plan doesn't include it). */
+  /** Skip AI analysis and report generation (e.g. for a limited preview). */
   skipAi?: boolean;
   /** Plan-specific report mode for free-tier users. */
   plan?: 'FREE' | 'PRO' | 'AGENCY';
@@ -237,18 +237,27 @@ export async function runAudit(options: RunAuditOptions): Promise<AuditRunResult
   const recommendations = categories.flatMap((category) => category.recommendations);
 
   // -- 6. Report -------------------------------------------------------------
-  const report = await generateReport(
-    {
-      url: context.page.finalUrl,
-      overallScore,
-      previousScore: null, // filled by the caller, which knows the history
-      categories,
-      issues,
-      recommendations,
-      aiFindings,
-    },
-    plan,
-  );
+  const report = skipAi
+    ? {
+        executiveSummary: '',
+        strengths: [],
+        weaknesses: [],
+        longTermOutlook: null,
+        recommendations,
+        usage: null,
+      }
+    : await generateReport(
+        {
+          url: context.page.finalUrl,
+          overallScore,
+          previousScore: null,
+          categories,
+          issues,
+          recommendations,
+          aiFindings,
+        },
+        plan,
+      );
 
   const durationMs = Date.now() - started;
   runLog.info('audit finished', { overallScore, durationMs, warnings: warnings.length });

@@ -3,7 +3,6 @@ import * as React from 'react';
 import Link from 'next/link';
 
 import { AuroraBackground } from '@/components/marketing/aurora-background';
-import { Logo } from '@/components/shared/logo';
 
 interface AuthShellProps {
   title: string;
@@ -28,7 +27,6 @@ export function AuthShell({ title, description, footer, children }: AuthShellPro
 
       <div className="flex flex-1 flex-col px-4 py-8 sm:px-8 lg:w-1/2">
         <header className="flex items-center justify-between">
-          <Logo />
           <Link
             href="/"
             className="rounded-lg px-2 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -64,7 +62,7 @@ export function AuthShell({ title, description, footer, children }: AuthShellPro
               'Full technical audit in under a minute',
               'AI explains every finding in plain English',
               'Prioritised by impact against effort',
-              'Three free audits, no card required',
+              'One limited preview after signup; full audits from $5',
             ].map((line) => (
               <div key={line} className="flex items-center gap-3">
                 <span className="flex size-5 items-center justify-center rounded-full bg-success/15">

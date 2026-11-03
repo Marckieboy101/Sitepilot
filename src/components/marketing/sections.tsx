@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { PLANS, PLAN_ORDER, yearlySavingPercent } from '@/config/plans';
+import { STANDARD_SCAN_PRICE_CENTS } from '@/features/billing/scan-pricing';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
@@ -354,7 +355,7 @@ export function AiFeatures() {
               The part other audit tools <span className="text-gradient">leave out</span>
             </>
           }
-          description="Most tools hand you a list of numbers. WebDataScout tells you what they mean for your business and what to do about them."
+          description="Most tools hand you a list of numbers. GetTravik tells you what they mean for your business and what to do about them."
         />
 
         <div className="mt-16 grid items-start gap-12 lg:grid-cols-2">
@@ -384,7 +385,7 @@ export function AiFeatures() {
             <Card variant="glass" className="overflow-hidden">
               <div className="flex items-center gap-2.5 border-b border-border/60 px-5 py-3.5">
                 <Sparkles className="size-4 text-primary" aria-hidden="true" />
-                <span className="text-sm font-medium">WebDataScout Assistant</span>
+                <span className="text-sm font-medium">GetTravik Assistant</span>
                 <Badge variant="success" className="ml-auto">
                   Knows your audit
                 </Badge>
@@ -430,8 +431,8 @@ export function Pricing() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Pricing"
-          title="Start free. Upgrade when it pays for itself."
-          description="Every plan includes the full technical audit. Paid plans add the AI report, history, competitor analysis and export."
+          title="One free preview. Full audits from $5."
+          description="Sign up for one limited-statistics preview. Your first full audit is $5; future audits are $8 each, or choose a plan."
         />
 
         <motion.div
@@ -448,77 +449,100 @@ export function Pricing() {
         </motion.div>
 
         <div className="mt-12 grid gap-6 lg:grid-cols-3">
-          {PLAN_ORDER.map((planId, index) => {
-            const plan = PLANS[planId];
-            const price = yearly ? plan.yearlyPriceCents : plan.monthlyPriceCents;
-            const isFree = plan.monthlyPriceCents === 0;
-
-            return (
-              <motion.div
-                key={planId}
-                initial="hidden"
-                whileInView="visible"
-                viewport={viewport}
-                variants={rise}
-                custom={index}
+          {[
+            {
+              id: 'single-scan',
+              name: 'One-time scan',
+              tagline: 'Your first full audit is $5; each one after that is $8.',
+              price: STANDARD_SCAN_PRICE_CENTS,
+              bullets: [
+                'One limited-statistics preview free after signup',
+                'First complete audit for $5',
+                '$8 for each complete audit after that',
+                'Actionable findings ranked by impact',
+              ],
+              highlighted: false,
+              buttonText: 'Create account',
+              href: '/signup',
+            },
+            ...PLAN_ORDER.filter((planId) => planId !== 'FREE').map((planId, index) => {
+              const plan = PLANS[planId];
+              const price = yearly ? plan.yearlyPriceCents : plan.monthlyPriceCents;
+              return {
+                id: planId,
+                name: plan.name,
+                tagline: plan.tagline,
+                price,
+                bullets: plan.bullets,
+                highlighted: plan.highlighted,
+                buttonText: `Get ${plan.name}`,
+                href: `/signup?plan=${planId.toLowerCase()}`,
+                index,
+              };
+            }),
+          ].map((item, index) => (
+            <motion.div
+              key={item.id}
+              initial="hidden"
+              whileInView="visible"
+              viewport={viewport}
+              variants={rise}
+              custom={index}
+            >
+              <Card
+                variant={item.highlighted ? 'gradient' : 'default'}
+                className={cn('relative flex h-full flex-col', item.highlighted && 'lg:-mt-4 lg:mb-4')}
               >
-                <Card
-                  variant={plan.highlighted ? 'gradient' : 'default'}
-                  className={cn('relative flex h-full flex-col', plan.highlighted && 'lg:-mt-4 lg:mb-4')}
-                >
-                  {plan.highlighted && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-primary text-primary-foreground shadow-lg shadow-primary/25">
-                        Most popular
-                      </Badge>
-                    </div>
-                  )}
+                {item.highlighted && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+                      Most popular
+                    </Badge>
+                  </div>
+                )}
 
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg">{plan.name}</CardTitle>
-                    <CardDescription>{plan.tagline}</CardDescription>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">{item.name}</CardTitle>
+                  <CardDescription>{item.tagline}</CardDescription>
 
-                    <div className="pt-5">
-                      <span className="text-4xl font-semibold tracking-[-0.03em]">
-                        {isFree ? 'Free' : formatCurrency(price)}
+                  <div className="pt-5">
+                    <span className="text-4xl font-semibold tracking-[-0.03em]">
+                      {item.id === 'single-scan' ? formatCurrency(item.price) : formatCurrency(item.price)}
+                    </span>
+                    {item.id !== 'single-scan' && (
+                      <span className="ml-1.5 text-sm text-muted-foreground">
+                        /{yearly ? 'year' : 'month'}
                       </span>
-                      {!isFree && (
-                        <span className="ml-1.5 text-sm text-muted-foreground">
-                          /{yearly ? 'year' : 'month'}
-                        </span>
-                      )}
-                    </div>
-                  </CardHeader>
+                    )}
+                  </div>
+                </CardHeader>
 
-                  <CardContent className="flex flex-1 flex-col">
-                    <ul className="flex-1 space-y-3">
-                      {plan.bullets.map((bullet) => (
-                        <li key={bullet} className="flex items-start gap-2.5 text-sm">
-                          <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
-                          <span className="text-muted-foreground">{bullet}</span>
-                        </li>
-                      ))}
-                    </ul>
+                <CardContent className="flex flex-1 flex-col">
+                  <ul className="flex-1 space-y-3">
+                    {item.bullets.map((bullet) => (
+                      <li key={bullet} className="flex items-start gap-2.5 text-sm">
+                        <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+                        <span className="text-muted-foreground">{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
 
-                    <Button
-                      variant={plan.highlighted ? 'gradient' : 'outline'}
-                      size="lg"
-                      className="mt-8 w-full"
-                      asChild
-                    >
-                      <Link href={isFree ? '/signup' : `/signup?plan=${planId.toLowerCase()}`}>
-                        {isFree ? 'Start free' : `Get ${plan.name}`}
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                  <Button
+                    variant={item.highlighted ? 'gradient' : 'outline'}
+                    size="lg"
+                    className="mt-8 w-full"
+                    asChild
+                  >
+                    <Link href={item.href}>{item.buttonText}</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
-          All prices in USD. Cancel any time — no contract, no exit fee.
+          All prices in USD. Plans grant access for the selected term and do not automatically renew.
         </p>
       </div>
     </section>
@@ -620,7 +644,7 @@ const FAQS = [
   {
     question: 'Do I need to install anything on my website?',
     answer:
-      'No. There is no script, no plugin and no DNS change. WebDataScout fetches and renders your page from the outside, exactly the way a visitor or a search engine crawler would.',
+      'No. There is no script, no plugin and no DNS change. GetTravik fetches and renders your page from the outside, exactly the way a visitor or a search engine crawler would.',
   },
   {
     question: 'Where do the performance numbers come from?',

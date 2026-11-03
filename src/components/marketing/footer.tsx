@@ -1,7 +1,5 @@
 import Link from 'next/link';
 
-import { Logo } from '@/components/shared/logo';
-
 const COLUMNS = [
   {
     title: 'Product',
@@ -45,8 +43,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div className="max-w-xs">
-            <Logo />
-            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               AI-powered website auditing. Technical depth, explained in plain English, with a clear order
               to fix things in.
             </p>
@@ -73,7 +70,7 @@ export function Footer() {
 
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-8 sm:flex-row">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} WebDataScout. All rights reserved.
+            © {new Date().getFullYear()} GetTravik. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Performance data from Google PageSpeed Insights · Accessibility testing by axe-core

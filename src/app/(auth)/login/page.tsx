@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export const metadata: Metadata = {
   title: 'Sign in',
-  description: 'Sign in to your WebDataScout account.',
+  description: 'Sign in to your GetTravik account.',
 };
 
 export default function LoginPage() {

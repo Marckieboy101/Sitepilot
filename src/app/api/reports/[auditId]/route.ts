@@ -49,6 +49,9 @@ export async function GET(
     if (audit.status !== 'COMPLETED') {
       return NextResponse.json({ error: 'That audit has not completed yet.' }, { status: 409 });
     }
+    if (audit.previewOnly) {
+      return NextResponse.json({ error: 'Full reports are not available for a limited preview.' }, { status: 403 });
+    }
 
     await consumeQuota(session.organizationId, 'pdfExports');
 
@@ -80,7 +83,7 @@ export async function GET(
     const whiteLabel = PLANS[entitlements.plan].features.whiteLabel;
 
     const html = renderReportHtml(data, {
-      organizationName: organization?.name ?? 'WebDataScout',
+      organizationName: organization?.name ?? 'GetTravik',
       logoUrl: whiteLabel ? (organization?.brandLogoUrl ?? null) : null,
       brandColor: whiteLabel ? (organization?.brandColor ?? null) : null,
       footerText: whiteLabel ? (organization?.reportFooterText ?? null) : null,

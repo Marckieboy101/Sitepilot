@@ -106,8 +106,16 @@ const serverSchema = z.object({
   GOOGLE_PAGESPEED_API_KEY: emptyAsUndefined(),
   CHROMIUM_EXECUTABLE_PATH: emptyAsUndefined(),
 
+  MOLLIE_API_KEY: emptyAsUndefined(),
+  MOLLIE_WEBHOOK_SECRET: emptyAsUndefined(),
+  MOLLIE_CURRENCY: z.preprocess(
+    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
+    z.literal('USD').default('USD'),
+  ),
+
   STRIPE_SECRET_KEY: emptyAsUndefined(),
   STRIPE_WEBHOOK_SECRET: emptyAsUndefined(),
+  STRIPE_PRICE_ONE_TIME_SCAN: emptyAsUndefined(),
   STRIPE_PRICE_PRO_MONTHLY: emptyAsUndefined(),
   STRIPE_PRICE_PRO_YEARLY: emptyAsUndefined(),
   STRIPE_PRICE_AGENCY_MONTHLY: emptyAsUndefined(),
@@ -171,7 +179,7 @@ export function features() {
     openai: Boolean(env.OPENAI_API_KEY),
     pageSpeed: Boolean(env.GOOGLE_PAGESPEED_API_KEY),
     browser: Boolean(env.CHROMIUM_EXECUTABLE_PATH),
-    stripe: Boolean(env.STRIPE_SECRET_KEY),
+    stripe: Boolean(env.MOLLIE_API_KEY || env.STRIPE_SECRET_KEY),
     supabaseAdmin: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
   } as const;
 }

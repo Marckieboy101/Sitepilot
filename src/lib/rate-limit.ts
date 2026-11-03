@@ -77,8 +77,6 @@ export function enforceRateLimit(key: string, rule: RateLimitRule): void {
 export const RATE_LIMITS = {
   /** Full audits are expensive (browser + PSI + AI). */
   audit: { limit: 10, windowSeconds: 60 * 10 },
-  /** Anonymous landing-page trials, keyed by IP. */
-  publicAudit: { limit: 3, windowSeconds: 60 * 60 },
   aiChat: { limit: 30, windowSeconds: 60 * 5 },
   aiReport: { limit: 10, windowSeconds: 60 * 10 },
   pdfExport: { limit: 20, windowSeconds: 60 * 10 },

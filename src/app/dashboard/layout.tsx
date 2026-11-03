@@ -27,8 +27,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getSession();
   if (!session) redirect('/login?next=/dashboard');
 
-  const [entitlements, notifications, searchTargets] = await Promise.all([
+  const [entitlements, organization, notifications, searchTargets] = await Promise.all([
     getEntitlements(session.organizationId),
+    db.organization.findUnique({
+      where: { id: session.organizationId },
+      select: { freePreviewUsed: true },
+    }),
     getNotifications(session.userId),
     // Search index: recent audits, resolved once per navigation rather than
     // hitting the server on every keystroke.
@@ -50,6 +54,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     plan: entitlements.plan,
     auditsUsed: entitlements.usage.auditsRun,
     auditsLimit: entitlements.limits.auditsPerMonth,
+    freePreviewUsed: organization?.freePreviewUsed ?? false,
   };
 
   return (

@@ -1,109 +1,174 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Plan } from '@prisma/client';
 import { z } from 'zod';
 
+import { PLANS } from '@/config/plans';
 import { db } from '@/lib/db';
-import { clientEnv } from '@/lib/env';
+import { clientEnv, serverEnv } from '@/lib/env';
 import { errors, fail, ok, type ActionResult } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { RATE_LIMITS, enforceRateLimit } from '@/lib/rate-limit';
 
 import { requireSession } from '../auth/session';
-import { priceIdFor, stripe, stripeConfigured } from './stripe';
+import { oneTimeScanPriceCents } from './scan-pricing';
+import { mollieConfigured } from './stripe';
 
 const log = logger.child({ module: 'billing/actions' });
 
 const checkoutSchema = z.object({
-  plan: z.enum(['PRO', 'AGENCY']),
+  plan: z.enum(['PRO', 'AGENCY', 'ONE_TIME']),
   interval: z.enum(['monthly', 'yearly']).default('monthly'),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
-/**
- * Creates a Stripe Checkout session.
- *
- * The organization id is stamped into both `client_reference_id` and the
- * subscription metadata. The webhook reads it from there rather than trying to
- * match on customer email — emails change, and a mismatch would silently
- * upgrade the wrong account.
- */
+function toAmountString(cents: number, currency: string): { value: string; currency: string } {
+  return {
+    value: (cents / 100).toFixed(2),
+    currency,
+  };
+}
+
+async function createMolliePayment(input: {
+  amountCents: number;
+  description: string;
+  orderId: string;
+  organizationId: string;
+  userId: string;
+  email: string;
+  type: 'SCAN_CREDIT' | 'PLAN';
+  plan: 'PRO' | 'AGENCY' | null;
+  interval: 'monthly' | 'yearly' | null;
+  successUrl: string;
+}) {
+  const env = serverEnv();
+  const apiKey = env.MOLLIE_API_KEY;
+  if (!apiKey) {
+    throw errors.configuration('Mollie is not configured on this deployment.');
+  }
+
+  const response = await fetch('https://api.mollie.com/v2/payments', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'User-Agent': 'GetTravik/1.0',
+    },
+    body: JSON.stringify({
+      amount: toAmountString(input.amountCents, env.MOLLIE_CURRENCY),
+      description: input.description,
+      redirectUrl: input.successUrl,
+      metadata: {
+        orderId: input.orderId,
+        organizationId: input.organizationId,
+        userId: input.userId,
+        email: input.email,
+        type: input.type,
+        plan: input.plan,
+        interval: input.interval,
+      },
+      webhookUrl: `${clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/api/webhooks/mollie`,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw errors.upstream('Mollie', `Payment could not be started. ${body}`);
+  }
+
+  const data = (await response.json()) as {
+    _links?: { checkout?: { href?: string } };
+    url?: string;
+    id?: string;
+  };
+
+  const paymentUrl = data._links?.checkout?.href ?? data.url;
+  if (!paymentUrl) {
+    throw errors.upstream('Mollie', 'Payment was created without a redirect URL.');
+  }
+  if (!data.id) {
+    throw errors.upstream('Mollie', 'Payment was created without a payment ID.');
+  }
+
+  return { url: paymentUrl, id: data.id };
+}
+
+/** Creates a Mollie checkout for a scan credit or a paid plan term. */
 export async function createCheckoutAction(input: CheckoutInput): Promise<ActionResult<{ url: string }>> {
   try {
     const session = await requireSession();
     enforceRateLimit(`checkout:${session.userId}`, RATE_LIMITS.mutation);
 
-    if (!stripeConfigured()) throw errors.configuration('Billing is not configured on this deployment.');
+    if (!mollieConfigured()) {
+      throw errors.configuration('Mollie is not configured on this deployment.');
+    }
 
     const parsed = checkoutSchema.safeParse(input);
     if (!parsed.success) throw errors.validation('Pick a valid plan.');
 
-    const plan = Plan[parsed.data.plan];
-    const priceId = priceIdFor(plan, parsed.data.interval);
-
-    const subscription = await db.subscription.findUnique({
-      where: { organizationId: session.organizationId },
-      select: { stripeCustomerId: true },
+    const plan = parsed.data.plan;
+    const interval = parsed.data.interval;
+    const env = serverEnv();
+    const organization = await db.organization.findUnique({
+      where: { id: session.organizationId },
+      select: { paidScanPurchases: true },
     });
+    if (!organization) throw errors.notFound('Workspace');
+
+    const amountCents =
+      plan === 'ONE_TIME'
+        ? oneTimeScanPriceCents(organization.paidScanPurchases)
+        : interval === 'yearly'
+          ? PLANS[plan].yearlyPriceCents
+          : PLANS[plan].monthlyPriceCents;
 
     const baseUrl = clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
-
-    const checkout = await stripe().checkout.sessions.create({
-      mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      // Reuse the existing customer so a second purchase does not create a
-      // duplicate record with a split payment history.
-      ...(subscription?.stripeCustomerId
-        ? { customer: subscription.stripeCustomerId }
-        : { customer_email: session.email }),
-      client_reference_id: session.organizationId,
-      subscription_data: {
-        metadata: { organizationId: session.organizationId, userId: session.userId },
+    const successUrl = `${baseUrl}/dashboard/billing?checkout=success&type=${plan === 'ONE_TIME' ? 'scan' : 'plan'}`;
+    const order = await db.molliePayment.create({
+      data: {
+        organizationId: session.organizationId,
+        type: plan === 'ONE_TIME' ? 'SCAN_CREDIT' : 'PLAN',
+        plan: plan === 'ONE_TIME' ? null : plan,
+        interval: plan === 'ONE_TIME' ? null : interval,
+        amountCents,
+        currency: env.MOLLIE_CURRENCY,
       },
-      metadata: { organizationId: session.organizationId },
-      allow_promotion_codes: true,
-      billing_address_collection: 'auto',
-      success_url: `${baseUrl}/dashboard/billing?checkout=success`,
-      cancel_url: `${baseUrl}/dashboard/billing?checkout=cancelled`,
     });
 
-    if (!checkout.url) throw errors.upstream('Stripe', 'Checkout could not be started.');
+    try {
+      const payment = await createMolliePayment({
+        amountCents,
+        description:
+          plan === 'ONE_TIME'
+            ? `GetTravik ${organization.paidScanPurchases === 0 ? 'first ' : ''}full scan`
+            : `${PLANS[plan].name} ${interval} plan`,
+        orderId: order.id,
+        organizationId: session.organizationId,
+        userId: session.userId,
+        email: session.email,
+        type: order.type,
+        plan: plan === 'ONE_TIME' ? null : plan,
+        interval: plan === 'ONE_TIME' ? null : interval,
+        successUrl,
+      });
 
-    return ok({ url: checkout.url });
+      await db.molliePayment.update({
+        where: { id: order.id },
+        data: { molliePaymentId: payment.id },
+      });
+
+      return ok({ url: payment.url });
+    } catch (error) {
+      await db.molliePayment.update({
+        where: { id: order.id },
+        data: { status: 'creation_failed' },
+      });
+      throw error;
+    }
   } catch (error) {
     log.error('checkout creation failed', { error });
-    return fail(error);
-  }
-}
-
-/** Opens the Stripe-hosted billing portal for plan changes and invoices. */
-export async function createPortalAction(): Promise<ActionResult<{ url: string }>> {
-  try {
-    const session = await requireSession();
-
-    if (!stripeConfigured()) throw errors.configuration('Billing is not configured on this deployment.');
-
-    const subscription = await db.subscription.findUnique({
-      where: { organizationId: session.organizationId },
-      select: { stripeCustomerId: true },
-    });
-
-    if (!subscription?.stripeCustomerId) {
-      throw errors.validation('There is no billing account to manage yet.');
-    }
-
-    const baseUrl = clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
-
-    const portal = await stripe().billingPortal.sessions.create({
-      customer: subscription.stripeCustomerId,
-      return_url: `${baseUrl}/dashboard/billing`,
-    });
-
-    return ok({ url: portal.url });
-  } catch (error) {
-    log.error('portal creation failed', { error });
     return fail(error);
   }
 }
@@ -120,7 +185,7 @@ const brandingSchema = z.object({
 
 export type BrandingInput = z.infer<typeof brandingSchema>;
 
-/** White-label report settings. Agency plan only — enforced server-side. */
+/** White-label report settings. Agency plan only ? enforced server-side. */
 export async function updateBrandingAction(input: BrandingInput): Promise<ActionResult<null>> {
   try {
     const session = await requireSession();

@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { requireSession } from '@/features/auth/session';
 import { getEntitlements } from '@/features/billing/quota';
-import { stripeConfigured } from '@/features/billing/stripe';
+import { paymentConfigured } from '@/features/billing/stripe';
 import { db } from '@/lib/db';
 
 export const metadata: Metadata = { title: 'Billing' };
@@ -15,11 +15,11 @@ export const metadata: Metadata = { title: 'Billing' };
 export default async function BillingPage() {
   const session = await requireSession();
 
-  const [entitlements, subscription, invoices] = await Promise.all([
+  const [entitlements, organization, invoices] = await Promise.all([
     getEntitlements(session.organizationId),
-    db.subscription.findUnique({
-      where: { organizationId: session.organizationId },
-      select: { stripeCustomerId: true },
+    db.organization.findUnique({
+      where: { id: session.organizationId },
+      select: { freePreviewUsed: true, scanCredits: true, paidScanPurchases: true },
     }),
     db.invoice.findMany({
       where: { organizationId: session.organizationId },
@@ -51,8 +51,10 @@ export default async function BillingPage() {
           status={entitlements.status}
           cancelAtPeriodEnd={entitlements.cancelAtPeriodEnd}
           currentPeriodEnd={entitlements.currentPeriodEnd}
-          hasStripeCustomer={Boolean(subscription?.stripeCustomerId)}
-          billingConfigured={stripeConfigured()}
+          billingConfigured={paymentConfigured()}
+          freePreviewUsed={organization?.freePreviewUsed ?? false}
+          scanCredits={organization?.scanCredits ?? 0}
+          hasPurchasedScan={(organization?.paidScanPurchases ?? 0) > 0}
           usage={entitlements.usage}
           limits={{
             auditsPerMonth: entitlements.limits.auditsPerMonth,

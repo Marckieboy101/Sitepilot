@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { useSearchParams } from 'next/navigation';
-import { Check, CreditCard, ExternalLink } from 'lucide-react';
+import { Check, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { PLANS, PLAN_ORDER, yearlySavingPercent } from '@/config/plans';
-import { createCheckoutAction, createPortalAction } from '@/features/billing/actions';
+import { createCheckoutAction } from '@/features/billing/actions';
+import { oneTimeScanPriceCents } from '@/features/billing/scan-pricing';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Plan, SubscriptionStatus } from '@prisma/client';
 
@@ -21,8 +22,10 @@ interface BillingPanelProps {
   status: SubscriptionStatus;
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: Date | null;
-  hasStripeCustomer: boolean;
   billingConfigured: boolean;
+  freePreviewUsed: boolean;
+  scanCredits: number;
+  hasPurchasedScan: boolean;
   usage: {
     auditsRun: number;
     aiReports: number;
@@ -64,29 +67,25 @@ export function BillingPanel(props: BillingPanelProps) {
   // see, so the confirmation toast is driven from the URL.
   React.useEffect(() => {
     const checkout = searchParams.get('checkout');
+    const type = searchParams.get('type');
+
     if (checkout === 'success') {
-      toast.success('Payment received — your new plan is active.');
+      toast.success(
+        type === 'scan'
+          ? 'Payment received — your scan credit will be ready as soon as Mollie confirms it.'
+          : 'Payment received — your new plan is active.',
+      );
     } else if (checkout === 'cancelled') {
       toast.info('Checkout cancelled. Nothing was charged.');
     }
   }, [searchParams]);
 
-  async function handleUpgrade(plan: 'PRO' | 'AGENCY') {
+  async function handleUpgrade(plan: 'PRO' | 'AGENCY' | 'ONE_TIME') {
     setPending(plan);
-    const result = await createCheckoutAction({ plan, interval: yearly ? 'yearly' : 'monthly' });
-
-    if (!result.ok) {
-      toast.error(result.error.message);
-      setPending(null);
-      return;
-    }
-
-    window.location.href = result.data.url;
-  }
-
-  async function handlePortal() {
-    setPending('portal');
-    const result = await createPortalAction();
+    const result = await createCheckoutAction({
+      plan,
+      interval: plan === 'ONE_TIME' ? 'monthly' : yearly ? 'yearly' : 'monthly',
+    });
 
     if (!result.ok) {
       toast.error(result.error.message);
@@ -114,26 +113,24 @@ export function BillingPanel(props: BillingPanelProps) {
               {props.cancelAtPeriodEnd && props.currentPeriodEnd
                 ? `Cancels on ${props.currentPeriodEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. You keep everything until then.`
                 : props.currentPeriodEnd
-                  ? `Renews on ${props.currentPeriodEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
+                    ? `${props.status === 'CANCELED' ? 'Access ended on' : 'Access is paid through'} ${props.currentPeriodEnd.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
                   : currentPlan.tagline}
             </CardDescription>
           </div>
 
-          {props.hasStripeCustomer && props.billingConfigured && (
-            <Button variant="outline" onClick={handlePortal} loading={pending === 'portal'}>
-              <CreditCard className="size-4" />
-              Manage billing
-            </Button>
-          )}
         </CardHeader>
 
         <CardContent>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <UsageMeter
-              label="Audits this month"
-              used={props.usage.auditsRun}
-              limit={props.limits.auditsPerMonth}
-            />
+            {props.plan === 'FREE' ? (
+              <UsageMeter label="Signup preview" used={props.freePreviewUsed ? 1 : 0} limit={1} />
+            ) : (
+              <UsageMeter
+                label="Audits this month"
+                used={props.usage.auditsRun}
+                limit={props.limits.auditsPerMonth}
+              />
+            )}
             <UsageMeter
               label="AI chat messages"
               used={props.usage.aiChatMessages}
@@ -145,7 +142,9 @@ export function BillingPanel(props: BillingPanelProps) {
           </div>
 
           <p className="mt-6 text-xs text-muted-foreground">
-            Usage resets on the first of each month (UTC).
+            {props.plan === 'FREE'
+              ? 'Your signup preview is a one-time allowance. Paid scan credits remain available until used.'
+              : 'Usage resets on the first of each month (UTC).'}
           </p>
         </CardContent>
       </Card>
@@ -164,8 +163,13 @@ export function BillingPanel(props: BillingPanelProps) {
         <div className="rounded-xl border border-warning/30 bg-warning/[0.06] p-4">
           <p className="text-sm font-medium">Billing is not configured on this deployment</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Set the Stripe environment variables to enable plan upgrades.
+            Set the Mollie API key to enable purchases.
           </p>
+        </div>
+      )}
+      {props.scanCredits > 0 && (
+        <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-4 text-sm">
+          You have {props.scanCredits} paid full-audit credit{props.scanCredits === 1 ? '' : 's'} ready to use.
         </div>
       )}
 
@@ -177,40 +181,61 @@ export function BillingPanel(props: BillingPanelProps) {
         <Badge variant="success">Save {yearlySavingPercent('PRO')}%</Badge>
       </div>
 
+      <p className="text-center text-xs text-muted-foreground">
+        Plan purchases provide access for the selected term and do not automatically renew.
+      </p>
+
       <div className="grid gap-5 lg:grid-cols-3">
-        {PLAN_ORDER.map((planId) => {
-          const plan = PLANS[planId];
-          const isCurrent = planId === props.plan;
-          const price = yearly ? plan.yearlyPriceCents : plan.monthlyPriceCents;
-          const isFree = plan.monthlyPriceCents === 0;
+        {[
+          {
+            id: 'ONE_TIME' as const,
+            name: 'One-time scan',
+            tagline: 'First full audit is $5; future scans are $8 each.',
+            price: oneTimeScanPriceCents(props.hasPurchasedScan ? 1 : 0),
+            bullets: [
+              'Complete website audit for one site',
+              'SEO, performance & accessibility scoring',
+              'Actionable findings ranked by impact',
+              'Purchase another scan any time',
+            ],
+            highlighted: false,
+          },
+          ...PLAN_ORDER.filter((planId) => planId !== 'FREE').map((planId) => {
+            const plan = PLANS[planId];
+            return {
+              id: planId,
+              name: plan.name,
+              tagline: plan.tagline,
+              price: yearly ? plan.yearlyPriceCents : plan.monthlyPriceCents,
+              bullets: plan.bullets,
+              highlighted: plan.highlighted,
+            };
+          }),
+        ].map((item) => {
+          const isCurrent = item.id === props.plan;
+          const isOneTime = item.id === 'ONE_TIME';
 
           return (
             <Card
-              key={planId}
-              variant={isCurrent ? 'gradient' : 'default'}
+              key={item.id}
+              variant={isCurrent ? 'gradient' : item.highlighted ? 'gradient' : 'default'}
               className={cn('flex flex-col', isCurrent && 'ring-1 ring-primary/30')}
             >
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>{plan.name}</CardTitle>
+                  <CardTitle>{item.name}</CardTitle>
                   {isCurrent && <Badge>Current</Badge>}
                 </div>
-                <CardDescription>{plan.tagline}</CardDescription>
+                <CardDescription>{item.tagline}</CardDescription>
                 <div className="pt-4">
-                  <span className="text-3xl font-semibold tracking-[-0.03em]">
-                    {isFree ? 'Free' : formatCurrency(price)}
-                  </span>
-                  {!isFree && (
-                    <span className="ml-1.5 text-sm text-muted-foreground">
-                      /{yearly ? 'year' : 'month'}
-                    </span>
-                  )}
+                  <span className="text-3xl font-semibold tracking-[-0.03em]">{formatCurrency(item.price)}</span>
+                  {!isOneTime && <span className="ml-1.5 text-sm text-muted-foreground">/{yearly ? 'year' : 'month'}</span>}
                 </div>
               </CardHeader>
 
               <CardContent className="flex flex-1 flex-col">
                 <ul className="flex-1 space-y-2.5">
-                  {plan.bullets.map((bullet) => (
+                  {item.bullets.map((bullet) => (
                     <li key={bullet} className="flex items-start gap-2.5 text-sm">
                       <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
                       <span className="text-muted-foreground">{bullet}</span>
@@ -218,17 +243,17 @@ export function BillingPanel(props: BillingPanelProps) {
                   ))}
                 </ul>
 
-                {!isCurrent && !isFree && (
+                {!isCurrent && (
                   <Button
                     variant="gradient"
                     className="mt-6 w-full"
                     disabled={!props.billingConfigured}
-                    loading={pending === planId}
-                    onClick={() => handleUpgrade(planId as 'PRO' | 'AGENCY')}
+                    loading={pending === item.id}
+                    onClick={() => handleUpgrade(item.id)}
                   >
-                    {PLAN_ORDER.indexOf(planId) > PLAN_ORDER.indexOf(props.plan)
-                      ? `Upgrade to ${plan.name}`
-                      : `Switch to ${plan.name}`}
+                    {isOneTime
+                      ? `Pay ${formatCurrency(item.price)} once`
+                      : `Upgrade to ${item.name}`}
                   </Button>
                 )}
 

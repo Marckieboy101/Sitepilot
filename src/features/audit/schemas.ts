@@ -37,12 +37,6 @@ export const startAuditSchema = z.object({
 
 export type StartAuditInput = z.infer<typeof startAuditSchema>;
 
-export const publicAuditSchema = z.object({
-  url: auditUrlSchema,
-});
-
-export type PublicAuditInput = z.infer<typeof publicAuditSchema>;
-
 export const auditFiltersSchema = z.object({
   projectId: z.string().cuid().optional(),
   websiteId: z.string().cuid().optional(),

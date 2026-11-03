@@ -36,10 +36,27 @@ export function stripeConfigured(): boolean {
   return Boolean(serverEnv().STRIPE_SECRET_KEY);
 }
 
+export function mollieConfigured(): boolean {
+  return Boolean(serverEnv().MOLLIE_API_KEY);
+}
+
+export function paymentConfigured(): boolean {
+  return mollieConfigured();
+}
+
 export type BillingInterval = 'monthly' | 'yearly';
+export type PurchasePlan = Plan | 'ONE_TIME';
 
 /** Resolves the configured Stripe price id for a plan and interval. */
-export function priceIdFor(plan: Plan, interval: BillingInterval): string {
+export function priceIdFor(plan: PurchasePlan, interval: BillingInterval = 'monthly'): string {
+  if (plan === 'ONE_TIME') {
+    const value = serverEnv().STRIPE_PRICE_ONE_TIME_SCAN;
+    if (!value) {
+      throw errors.configuration('No Stripe price configured for the one-time scan.');
+    }
+    return value;
+  }
+
   const definition = PLANS[plan];
   const envKey = interval === 'yearly' ? definition.stripeYearlyPriceEnv : definition.stripeMonthlyPriceEnv;
 

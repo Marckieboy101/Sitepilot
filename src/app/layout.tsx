@@ -21,15 +21,20 @@ const mono = JetBrains_Mono({
   display: 'swap',
 });
 
-const title = 'WebDataScout — AI-powered website audits';
+const title = 'GetTravik — AI-powered website audits';
 const description =
-  'Audit any website in 60 seconds. WebDataScout combines Lighthouse, axe-core and deep technical analysis with AI that explains what to fix, why it matters, and what to do first.';
+  'Audit any website in 60 seconds. GetTravik combines Lighthouse, axe-core and deep technical analysis with AI that explains what to fix, why it matters, and what to do first.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(clientEnv.NEXT_PUBLIC_APP_URL),
-  title: { default: title, template: '%s · WebDataScout' },
+  title: { default: title, template: '%s · GetTravik' },
   description,
-  applicationName: 'WebDataScout',
+  applicationName: 'GetTravik',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
   keywords: [
     'website audit',
     'SEO analysis',
@@ -39,10 +44,10 @@ export const metadata: Metadata = {
     'AI website analysis',
     'conversion optimisation',
   ],
-  authors: [{ name: 'WebDataScout' }],
+  authors: [{ name: 'GetTravik' }],
   openGraph: {
     type: 'website',
-    siteName: 'WebDataScout',
+    siteName: 'GetTravik',
     title,
     description,
     url: clientEnv.NEXT_PUBLIC_APP_URL,
@@ -52,9 +57,6 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
     googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
-  },
-  icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
   },
 };
 

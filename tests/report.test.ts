@@ -1,4 +1,4 @@
-import { AuditCategory, Difficulty, Priority, Severity } from '@prisma/client';
+import { AuditCategory, Difficulty, Plan, Priority, Severity } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import { buildFallbackReport } from '@/features/ai/report';
@@ -32,6 +32,15 @@ function recommendation(overrides: Partial<AnalyzerRecommendation> = {}): Analyz
 }
 
 describe('buildFallbackReport', () => {
+  it('keeps the free preview to its overall score only', () => {
+    const report = buildFallbackReport(base, Plan.FREE);
+
+    expect(report.executiveSummary).toBe(`${base.url} scored ${base.overallScore}/100.`);
+    expect(report.strengths).toEqual([]);
+    expect(report.weaknesses).toEqual([]);
+    expect(report.recommendations).toEqual([]);
+  });
+
   const base = {
     url: 'https://example.com',
     overallScore: 64,
@@ -172,8 +181,8 @@ describe('renderReportHtml', () => {
     expect(html).not.toMatch(/<script\s+src=/);
   });
 
-  it('shows WebDataScout branding by default and the org brand under white-label', () => {
-    expect(renderReportHtml(data, branding)).toContain('WebDataScout');
+  it('shows GetTravik branding by default and the org brand under white-label', () => {
+    expect(renderReportHtml(data, branding)).toContain('GetTravik');
 
     const whiteLabelled = renderReportHtml(data, {
       ...branding,

@@ -17,7 +17,6 @@ import {
   Users,
 } from 'lucide-react';
 
-import { Logo } from '@/components/shared/logo';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -56,6 +55,7 @@ export interface SidebarUsage {
   plan: Plan;
   auditsUsed: number;
   auditsLimit: number | null;
+  freePreviewUsed: boolean;
 }
 
 interface SidebarProps {
@@ -73,14 +73,12 @@ export function SidebarContent({ usage, onNavigate }: SidebarProps) {
 
   const plan = PLANS[usage.plan];
   const percentUsed =
-    usage.auditsLimit == null ? 0 : Math.min(100, (usage.auditsUsed / usage.auditsLimit) * 100);
+    usage.auditsLimit == null || usage.auditsLimit <= 0
+      ? 0
+      : Math.min(100, (usage.auditsUsed / usage.auditsLimit) * 100);
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 shrink-0 items-center px-5">
-        <Logo href="/dashboard" />
-      </div>
-
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4" aria-label="Dashboard">
         {NAV_SECTIONS.map((section, index) => (
           <div key={section.label ?? `section-${index}`}>
@@ -137,21 +135,33 @@ export function SidebarContent({ usage, onNavigate }: SidebarProps) {
           </div>
 
           <div className="mt-3 space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Audits this month</span>
-              <span className="tabular-nums">
-                {usage.auditsUsed}
-                {usage.auditsLimit != null ? ` / ${usage.auditsLimit}` : ''}
-              </span>
-            </div>
-            {usage.auditsLimit != null ? (
-              <Progress
-                value={percentUsed}
-                className="h-1.5"
-                indicatorColor={percentUsed >= 100 ? 'hsl(var(--destructive))' : undefined}
-              />
+            {usage.plan === 'FREE' ? (
+              <>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Signup preview</span>
+                  <span>{usage.freePreviewUsed ? 'Used' : 'Available'}</span>
+                </div>
+                <Progress value={usage.freePreviewUsed ? 100 : 0} className="h-1.5" />
+              </>
             ) : (
-              <p className="text-xs text-muted-foreground">Unlimited</p>
+              <>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Audits this month</span>
+                  <span className="tabular-nums">
+                    {usage.auditsUsed}
+                    {usage.auditsLimit != null ? ` / ${usage.auditsLimit}` : ''}
+                  </span>
+                </div>
+                {usage.auditsLimit != null ? (
+                  <Progress
+                    value={percentUsed}
+                    className="h-1.5"
+                    indicatorColor={percentUsed >= 100 ? 'hsl(var(--destructive))' : undefined}
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground">Unlimited</p>
+                )}
+              </>
             )}
           </div>
 

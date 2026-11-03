@@ -1,28 +1,12 @@
 'use client';
 
-import * as React from 'react';
-
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Globe, Sparkles, Zap } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { publicAuditAction, type PublicAuditResult } from '@/features/audit/actions';
-import { cn } from '@/lib/utils';
 
 import { AuroraBackground } from './aurora-background';
-import { AuditPreviewError, AuditPreviewLoading, AuditPreviewResult } from './audit-preview';
-
-/**
- * Hero with a working audit, not a mock.
- *
- * The URL field runs a real (reduced) audit through the same engine the
- * product uses. That decision costs real compute on anonymous traffic, which
- * is why the public path skips the browser, link probing and the AI pass, and
- * is rate-limited by IP — but a demo that actually analyses the visitor's own
- * site converts on a completely different scale to a screenshot of one.
- */
 
 const rise = {
   hidden: { opacity: 0, y: 20 },
@@ -33,32 +17,7 @@ const rise = {
   }),
 };
 
-type State =
-  | { status: 'idle' }
-  | { status: 'running' }
-  | { status: 'done'; result: PublicAuditResult }
-  | { status: 'error'; message: string };
-
 export function Hero() {
-  const [url, setUrl] = React.useState('');
-  const [state, setState] = React.useState<State>({ status: 'idle' });
-  const resultRef = React.useRef<HTMLDivElement>(null);
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!url.trim() || state.status === 'running') return;
-
-    setState({ status: 'running' });
-    // Bring the result panel into view while it loads, so the staged progress
-    // copy is actually visible rather than below the fold.
-    requestAnimationFrame(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
-
-    const response = await publicAuditAction({ url: url.trim() });
-
-    if (response.ok) setState({ status: 'done', result: response.data });
-    else setState({ status: 'error', message: response.error.message });
-  }
-
   return (
     <section className="relative overflow-hidden pb-20 pt-32 sm:pb-28 sm:pt-40">
       <AuroraBackground />
@@ -91,47 +50,24 @@ export function Hero() {
             variants={rise}
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground"
           >
-            WebDataScout runs a full technical audit — SEO, Core Web Vitals, accessibility, security —
+            GetTravik runs a full technical audit — SEO, Core Web Vitals, accessibility, security —
             then explains the results in plain English and tells you what to fix first.
           </motion.p>
 
-          <motion.form
+          <motion.div
             initial="hidden"
             animate="visible"
             custom={3}
             variants={rise}
-            onSubmit={handleSubmit}
-            className="mx-auto mt-9 flex max-w-xl flex-col gap-3 sm:flex-row"
+            className="mx-auto mt-9 flex max-w-xl flex-col items-center justify-center gap-3 sm:flex-row"
           >
-            <label htmlFor="hero-url" className="sr-only">
-              Website URL to audit
-            </label>
-            <Input
-              id="hero-url"
-              type="text"
-              inputMode="url"
-              autoComplete="url"
-              spellCheck={false}
-              placeholder="yourwebsite.com"
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              icon={<Globe />}
-              className="h-13 flex-1 bg-card/70 text-base backdrop-blur sm:h-14"
-              disabled={state.status === 'running'}
-            />
-            <Button
-              type="submit"
-              variant="gradient"
-              size="xl"
-              loading={state.status === 'running'}
-              loadingText="Analysing…"
-              disabled={!url.trim()}
-              className="sm:w-auto"
-            >
-              <Zap className="size-4" />
-              Analyse free
+            <Button asChild variant="gradient" size="xl">
+              <Link href="/signup">Create an account for one free preview</Link>
             </Button>
-          </motion.form>
+            <Button asChild variant="outline" size="xl">
+              <Link href="#pricing">View pricing</Link>
+            </Button>
+          </motion.div>
 
           <motion.p
             initial="hidden"
@@ -140,33 +76,18 @@ export function Hero() {
             variants={rise}
             className="mt-4 text-sm text-muted-foreground"
           >
-            No signup for the preview · 3 full audits free ·{' '}
-            <Link href="/signup" className="font-medium text-foreground underline-offset-4 hover:underline">
-              Create an account
-            </Link>{' '}
-            for the AI report
+            One limited preview after signup · First full audit $5 · Then $8 per audit or choose a plan
           </motion.p>
         </div>
 
-        {/* Result panel. Reserved space avoids a jarring layout jump. */}
-        <div ref={resultRef} className={cn('mx-auto mt-14 max-w-3xl', state.status === 'idle' && 'hidden')}>
-          {state.status === 'running' && <AuditPreviewLoading />}
-          {state.status === 'error' && (
-            <AuditPreviewError message={state.message} onRetry={() => setState({ status: 'idle' })} />
-          )}
-          {state.status === 'done' && <AuditPreviewResult result={state.result} />}
-        </div>
-
-        {state.status === 'idle' && (
-          <motion.div
-            initial={{ opacity: 0, y: 32 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="mx-auto mt-16 max-w-5xl"
-          >
-            <DashboardMockup />
-          </motion.div>
-        )}
+        <motion.div
+          initial={{ opacity: 0, y: 32 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="mx-auto mt-16 max-w-5xl"
+        >
+          <DashboardMockup />
+        </motion.div>
       </div>
     </section>
   );

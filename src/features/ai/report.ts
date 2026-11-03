@@ -112,14 +112,18 @@ function mergeRecommendations(
   });
 }
 
-/** Deterministic fallback report, used when AI is unavailable or fails. */
-function addFreePlanUpgradeNotice(summary: string): string {
-  const notice =
-    'Upgrade to Pro for the full AI breakdown, deeper recommendations and all extra detail behind the score. The basic free report keeps it short and clear.';
-  return `${summary}\n\n${notice}`;
-}
-
 export function buildFallbackReport(input: ReportInput, plan: Plan = Plan.PRO): GeneratedReport {
+  if (plan === Plan.FREE) {
+    return {
+      executiveSummary: `${input.url} scored ${input.overallScore}/100.`,
+      strengths: [],
+      weaknesses: [],
+      longTermOutlook: null,
+      recommendations: [],
+      usage: null,
+    };
+  }
+
   const sorted = [...input.categories].sort((a, b) => a.score - b.score);
   const weakest = sorted.slice(0, 3);
   const strongest = [...sorted].reverse().slice(0, 3);
@@ -142,9 +146,7 @@ export function buildFallbackReport(input: ReportInput, plan: Plan = Plan.PRO): 
       : 'No high-severity issues were found, which puts this site ahead of most.',
     `The weakest areas are ${weakest.map((category) => `${CATEGORY_LABELS[category.category]} (${category.score})`).join(', ')}. ${weakest[0]?.summary ?? ''}`,
     `The strongest are ${strongest.map((category) => `${CATEGORY_LABELS[category.category]} (${category.score})`).join(', ')}.`,
-    plan === Plan.FREE
-      ? 'This is the free basic report. Upgrade to Pro for the full AI summary, deeper analysis and the hidden details behind each recommendation.'
-      : 'Work through the prioritised list below from the top — the quick wins are ordered by impact against the effort they take.',
+    'Work through the prioritised list below from the top — the quick wins are ordered by impact against the effort they take.',
   ].join('\n\n');
 
   const strengths = strongest
@@ -155,16 +157,17 @@ export function buildFallbackReport(input: ReportInput, plan: Plan = Plan.PRO): 
     .map((category) => `${CATEGORY_LABELS[category.category]}: ${category.summary}`);
 
   return {
-    executiveSummary: plan === Plan.FREE ? addFreePlanUpgradeNotice(executiveSummary) : executiveSummary,
-    strengths: plan === Plan.FREE ? strengths.slice(0, 2) : strengths,
-    weaknesses: plan === Plan.FREE ? weaknesses.slice(0, 2) : weaknesses,
-    longTermOutlook: plan === Plan.FREE ? null : null,
+    executiveSummary,
+    strengths,
+    weaknesses,
+    longTermOutlook: null,
     recommendations: mergeRecommendations(input.recommendations, []),
     usage: null,
   };
 }
 
 export async function generateReport(input: ReportInput, plan: Plan = Plan.PRO): Promise<GeneratedReport> {
+  if (plan === Plan.FREE) return buildFallbackReport(input, plan);
   if (!aiAvailable()) return buildFallbackReport(input, plan);
 
   const evidence: ReportEvidence = {
@@ -200,24 +203,18 @@ export async function generateReport(input: ReportInput, plan: Plan = Plan.PRO):
   try {
     const { data, usage } = await completeJson({
       schema: aiReportSchema,
-      system:
-        plan === Plan.FREE
-          ? 'Write a short, basic AI summary for a free trial user. Keep it concise and business-friendly. Add a final sentence telling them to upgrade to Pro for the deeper analysis and full detail.'
-          : REPORT_SYSTEM_PROMPT,
+      system: REPORT_SYSTEM_PROMPT,
       user: buildReportPrompt(evidence),
       model: defaultModel(),
       temperature: 0.5,
-      maxTokens: plan === Plan.FREE ? 1200 : 4500,
+      maxTokens: 4500,
     });
 
-    const executiveSummary =
-      plan === Plan.FREE ? addFreePlanUpgradeNotice(data.executiveSummary) : data.executiveSummary;
-
     return {
-      executiveSummary,
-      strengths: plan === Plan.FREE ? data.strengths.slice(0, 2) : data.strengths,
-      weaknesses: plan === Plan.FREE ? data.weaknesses.slice(0, 2) : data.weaknesses,
-      longTermOutlook: plan === Plan.FREE ? null : data.longTermOutlook || null,
+      executiveSummary: data.executiveSummary,
+      strengths: data.strengths,
+      weaknesses: data.weaknesses,
+      longTermOutlook: data.longTermOutlook || null,
       recommendations: mergeRecommendations(input.recommendations, data.recommendations),
       usage,
     };

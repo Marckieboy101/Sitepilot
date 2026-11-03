@@ -32,6 +32,7 @@ export interface PersistInput {
   auditId: string;
   websiteId: string;
   result: AuditRunResult;
+  previewOnly?: boolean;
 }
 
 /** Resolves (or creates) the Website row an audit belongs to. */
@@ -128,6 +129,30 @@ async function storeScreenshot(dataUrl: string): Promise<string> {
 export async function persistAudit(input: PersistInput): Promise<string> {
   const { result, auditId, websiteId } = input;
 
+  if (input.previewOnly) {
+    await db.audit.update({
+      where: { id: auditId },
+      data: {
+        url: result.finalUrl,
+        status: AuditStatus.COMPLETED,
+        previewOnly: true,
+        overallScore: result.overallScore,
+        previousScore: null,
+        startedAt: new Date(Date.now() - result.durationMs),
+        completedAt: new Date(),
+        durationMs: result.durationMs,
+        categoryScores: {
+          create: result.categories.map((category) => ({
+            category: category.category,
+            score: category.score,
+            weight: CATEGORY_WEIGHTS[category.category] ?? 1,
+          })),
+        },
+      },
+    });
+    return auditId;
+  }
+
   const previousScore = await previousScoreFor(websiteId, auditId);
 
   const screenshots = await Promise.all(
@@ -147,6 +172,7 @@ export async function persistAudit(input: PersistInput): Promise<string> {
         data: {
           url: result.finalUrl,
           status: AuditStatus.COMPLETED,
+          previewOnly: false,
           overallScore: result.overallScore,
           previousScore,
           startedAt: new Date(Date.now() - result.durationMs),

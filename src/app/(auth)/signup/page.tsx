@@ -7,14 +7,14 @@ import { AuthDivider, GoogleButton } from '@/components/auth/google-button';
 
 export const metadata: Metadata = {
   title: 'Create your account',
-  description: 'Start auditing your website with GetTravik — three full audits free.',
+  description: 'Start auditing your website with GetTravik — one limited-statistics preview, with full audits available from $5.',
 };
 
 export default function SignUpPage() {
   return (
     <AuthShell
       title="Create your account"
-      description="Three full audits free. No card required."
+      description="One limited-statistics preview. First full audit $5; then $8 each or choose a plan."
       footer={
         <>
           Already have an account?{' '}

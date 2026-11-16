@@ -34,7 +34,7 @@ src/
 │   ├── (marketing)/        Landing, pricing, legal
 │   ├── (auth)/             Sign in, sign up, password reset
 │   ├── dashboard/          Authenticated app (force-dynamic)
-│   ├── api/                Streaming chat, report export, Stripe webhook
+│   ├── api/                Streaming chat, report export, Mollie + Stripe webhooks
 │   └── auth/callback/      OAuth + email-link exchange
 ├── features/               Feature modules — the actual product logic
 │   ├── audit/              Engine, analyzers, persistence, actions, queries
@@ -103,7 +103,7 @@ result and history stays comparable across sources.
 | `OPENAI_API_KEY` | Audits produce six deterministic categories instead of eight, with a rule-based report. No chat. |
 | `GOOGLE_PAGESPEED_API_KEY` | Performance falls back to a synthetic estimate, labelled as such in the UI. |
 | `CHROMIUM_EXECUTABLE_PATH` | No axe-core run, no screenshots, no visual profile. Accessibility drops to a static scan and says so. PDF export returns printable HTML. |
-| `STRIPE_SECRET_KEY` | Everyone stays on Free; the billing page explains why. |
+| `MOLLIE_API_KEY` | Checkout is disabled; the billing page explains why. Use a Mollie test key in development and a live key in production. |
 
 This is deliberate: a contributor with just Postgres gets a working app, and a
 production outage in any one provider degrades one feature rather than the
@@ -130,9 +130,12 @@ The parts worth reviewing carefully:
 - **Server action surface.** Every export from a `'use server'` module is a
   public RPC endpoint. Read functions that take an id live in `queries.ts`
   instead, so they cannot be called from a browser.
+- **Mollie webhook.** The incoming payment ID is used to retrieve the payment
+  from Mollie with the server-only API key; amount, currency and stored order
+  are checked before credits or a plan are applied. Repeated notifications do
+  not apply a paid order twice.
 - **Stripe webhook.** Signature verified against the untouched raw body; the
-  middleware excludes the path so nothing parses it first. Handlers are
-  idempotent full-state upserts, since Stripe retries and delivers out of order.
+  middleware excludes the path so nothing parses it first.
 - **Quota.** Enforced with a conditional increment inside a transaction, so two
   concurrent requests cannot both spend the last credit.
 - **Open redirect.** `next` parameters on login and the OAuth callback are
@@ -177,9 +180,9 @@ Designed for Vercel + Supabase.
 2. Point `DATABASE_URL` at the pooled (PgBouncer) connection and `DIRECT_URL`
    at the direct one — Prisma migrations need the direct connection.
 3. Add `https://your-domain/auth/callback` to Supabase's redirect allow-list.
-4. Add a Stripe webhook for `https://your-domain/api/webhooks/stripe`
-   subscribing to `checkout.session.completed`, `customer.subscription.*` and
-   `invoice.*`.
+4. Set `MOLLIE_API_KEY` to a test key while validating checkout, then to a live
+   key for production. Set `NEXT_PUBLIC_APP_URL` to the public HTTPS origin:
+   checkout sends Mollie the corresponding `/api/webhooks/mollie` callback URL.
 5. For screenshots and axe-core on serverless, set `CHROMIUM_EXECUTABLE_PATH`
    to a Lambda-compatible Chromium build.
 

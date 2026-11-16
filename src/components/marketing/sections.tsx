@@ -720,8 +720,8 @@ export function FinalCta() {
                 Find out what your website is costing you
               </h2>
               <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Three full audits free, no card required. You will know within a minute whether there is
-                anything worth fixing.
+                One limited-statistics preview, no card required. You will know within a minute whether
+                there is anything worth fixing.
               </p>
 
               <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

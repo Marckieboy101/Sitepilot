@@ -118,7 +118,7 @@ function DashboardMockup() {
           <span className="size-2.5 rounded-full bg-warning/60" />
           <span className="size-2.5 rounded-full bg-success/60" />
           <div className="ml-3 flex-1 rounded-md bg-muted/60 px-3 py-1 font-mono text-[0.6875rem] text-muted-foreground">
-            app.webdatascout.ai/dashboard
+            app.gettravik.com/dashboard
           </div>
         </div>
 

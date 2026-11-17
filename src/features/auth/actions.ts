@@ -6,7 +6,7 @@ import { headers } from 'next/headers';
 
 import { db } from '@/lib/db';
 import { clientEnv } from '@/lib/env';
-import { errors, fail, ok, type ActionResult } from '@/lib/errors';
+import { errors, fail, isAppError, ok, type ActionResult } from '@/lib/errors';
 import { logger } from '@/lib/logger';
 import { RATE_LIMITS, enforceRateLimit } from '@/lib/rate-limit';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
@@ -36,8 +36,13 @@ async function clientIp(): Promise<string> {
   );
 }
 
-function callbackUrl(next?: string): string {
-  const base = clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+async function callbackUrl(next?: string): Promise<string> {
+  const requestOrigin = (await headers()).get('origin');
+  const localOrigin =
+    requestOrigin && /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/i.test(requestOrigin)
+      ? requestOrigin
+      : null;
+  const base = (localOrigin ?? clientEnv.NEXT_PUBLIC_APP_URL).replace(/\/$/, '');
   const target = next && next.startsWith('/') ? next : '/dashboard';
   return `${base}/auth/callback?next=${encodeURIComponent(target)}`;
 }
@@ -56,7 +61,7 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult<{ n
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
-        emailRedirectTo: callbackUrl('/dashboard'),
+        emailRedirectTo: await callbackUrl('/dashboard'),
         data: { full_name: parsed.data.name },
       },
     });
@@ -73,6 +78,7 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult<{ n
 
     return ok({ needsVerification });
   } catch (error) {
+    if (!isAppError(error)) log.error('signup action failed unexpectedly', { error });
     return fail(error);
   }
 }
@@ -100,6 +106,7 @@ export async function signInAction(input: SignInInput): Promise<ActionResult<{ r
 
     return ok({ redirectTo: '/dashboard' });
   } catch (error) {
+    if (!isAppError(error)) log.error('signin action failed unexpectedly', { error });
     return fail(error);
   }
 }
@@ -110,7 +117,7 @@ export async function signInWithGoogleAction(next?: string): Promise<ActionResul
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: callbackUrl(next),
+        redirectTo: await callbackUrl(next),
         queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     });
@@ -118,6 +125,7 @@ export async function signInWithGoogleAction(next?: string): Promise<ActionResul
     if (error || !data.url) throw errors.upstream('Google sign-in', error?.message);
     return ok({ url: data.url });
   } catch (error) {
+    if (!isAppError(error)) log.error('Google sign-in initiation failed unexpectedly', { error });
     return fail(error);
   }
 }
@@ -132,10 +140,9 @@ export async function requestPasswordResetAction(
     if (!parsed.success) throw errors.validation('Enter a valid email address.');
 
     const supabase = await createServerSupabaseClient();
-    const base = clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
 
     await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-      redirectTo: `${base}/auth/callback?next=${encodeURIComponent('/reset-password/confirm')}`,
+      redirectTo: await callbackUrl('/reset-password/confirm'),
     });
 
     // Always report success — whether the address exists is not ours to leak.
@@ -178,7 +185,7 @@ export async function resendVerificationAction(email: string): Promise<ActionRes
     await supabase.auth.resend({
       type: 'signup',
       email,
-      options: { emailRedirectTo: callbackUrl('/dashboard') },
+      options: { emailRedirectTo: await callbackUrl('/dashboard') },
     });
 
     return ok(null);

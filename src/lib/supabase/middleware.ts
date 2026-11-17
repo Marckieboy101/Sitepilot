@@ -24,6 +24,18 @@ const AUTH_ROUTES = ['/login', '/signup', '/reset-password'];
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
 
+  const { pathname, searchParams } = request.nextUrl;
+  if (
+    pathname === '/' &&
+    (searchParams.has('code') || searchParams.has('error') || searchParams.has('error_description'))
+  ) {
+    // Supabase falls back to its Site URL when an OAuth redirect is not allow-listed.
+    // If that URL is the app root, forward the one-time response to the callback handler.
+    const callback = request.nextUrl.clone();
+    callback.pathname = '/auth/callback';
+    return NextResponse.redirect(callback);
+  }
+
   const url = sanitizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const key = sanitizeSupabaseKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
@@ -52,7 +64,6 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );

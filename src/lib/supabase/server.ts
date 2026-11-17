@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+import { errors } from '@/lib/errors';
 import { clientEnv, sanitizeSupabaseKey, sanitizeSupabaseUrl, serverEnv } from '@/lib/env';
 
 /**
@@ -18,7 +19,7 @@ export async function createServerSupabaseClient() {
   const key = sanitizeSupabaseKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ?? clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    throw new Error(
+    throw errors.configuration(
       'Supabase auth is not configured. Set real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY values to enable signup and sign in.',
     );
   }

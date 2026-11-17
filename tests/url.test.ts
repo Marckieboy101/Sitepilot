@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { AppError, fail } from '@/lib/errors';
+import { AppError, errors, fail } from '@/lib/errors';
 import { normalizeEnvValue, sanitizeSupabaseKey, sanitizeSupabaseUrl } from '@/lib/env';
 import {
   assertPublicUrl,
@@ -176,6 +176,20 @@ describe('normalizeEnvValue', () => {
 });
 
 describe('fail', () => {
+  it('preserves explicit configuration errors', () => {
+    const result = fail(
+      errors.configuration(
+        'Supabase auth is not configured. Set real NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY values to enable signup and sign in.',
+      ),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe('CONFIGURATION');
+      expect(result.error.message).toContain('NEXT_PUBLIC_SUPABASE_URL');
+    }
+  });
+
   it('maps missing configuration to a helpful configuration error', () => {
     const result = fail(new Error('Invalid server environment variables:\n  • DATABASE_URL: Required'));
 

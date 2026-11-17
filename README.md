@@ -99,7 +99,8 @@ result and history stays comparable across sources.
 | Variable | Without it |
 |---|---|
 | `DATABASE_URL` | **Required.** Nothing works. |
-| `NEXT_PUBLIC_SUPABASE_URL` + `_ANON_KEY` | Marketing site renders; sign-in unavailable. |
+| `NEXT_PUBLIC_SUPABASE_URL` + `_ANON_KEY` | Marketing site renders; sign-in unavailable. Set both in the deployment environment before building and redeploy after changes. |
+| Google OAuth provider | Google sign-in is unavailable until Google is enabled in Supabase Auth and its OAuth credentials are configured. |
 | `OPENAI_API_KEY` | Audits produce six deterministic categories instead of eight, with a rule-based report. No chat. |
 | `GOOGLE_PAGESPEED_API_KEY` | Performance falls back to a synthetic estimate, labelled as such in the UI. |
 | `CHROMIUM_EXECUTABLE_PATH` | No axe-core run, no screenshots, no visual profile. Accessibility drops to a static scan and says so. PDF export returns printable HTML. |
@@ -108,6 +109,11 @@ result and history stays comparable across sources.
 This is deliberate: a contributor with just Postgres gets a working app, and a
 production outage in any one provider degrades one feature rather than the
 product.
+
+For Google sign-in, configure the Google OAuth client in Supabase Auth and add
+`https://<project-ref>.supabase.co/auth/v1/callback` as an authorized redirect
+URI in Google Cloud. Supabase's redirect URL allow-list must also include the
+app's `/auth/callback` URL (for example, `https://your-domain.com/auth/callback`).
 
 ---
 

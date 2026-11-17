@@ -23,6 +23,7 @@ interface BillingPanelProps {
   cancelAtPeriodEnd: boolean;
   currentPeriodEnd: Date | null;
   billingConfigured: boolean;
+  currency: string;
   freePreviewUsed: boolean;
   scanCredits: number;
   hasPurchasedScan: boolean;
@@ -190,7 +191,7 @@ export function BillingPanel(props: BillingPanelProps) {
           {
             id: 'ONE_TIME' as const,
             name: 'One-time scan',
-            tagline: 'First full audit is $5; future scans are $8 each.',
+            tagline: `First full audit is ${formatCurrency(oneTimeScanPriceCents(0), props.currency)}; future scans are ${formatCurrency(oneTimeScanPriceCents(1), props.currency)} each.`,
             price: oneTimeScanPriceCents(props.hasPurchasedScan ? 1 : 0),
             bullets: [
               'Complete website audit for one site',
@@ -228,7 +229,9 @@ export function BillingPanel(props: BillingPanelProps) {
                 </div>
                 <CardDescription>{item.tagline}</CardDescription>
                 <div className="pt-4">
-                  <span className="text-3xl font-semibold tracking-[-0.03em]">{formatCurrency(item.price)}</span>
+                  <span className="text-3xl font-semibold tracking-[-0.03em]">
+                    {formatCurrency(item.price, props.currency)}
+                  </span>
                   {!isOneTime && <span className="ml-1.5 text-sm text-muted-foreground">/{yearly ? 'year' : 'month'}</span>}
                 </div>
               </CardHeader>
@@ -252,7 +255,7 @@ export function BillingPanel(props: BillingPanelProps) {
                     onClick={() => handleUpgrade(item.id)}
                   >
                     {isOneTime
-                      ? `Pay ${formatCurrency(item.price)} once`
+                      ? `Pay ${formatCurrency(item.price, props.currency)} once`
                       : `Upgrade to ${item.name}`}
                   </Button>
                 )}

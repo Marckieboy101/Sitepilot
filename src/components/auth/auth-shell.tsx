@@ -62,7 +62,7 @@ export function AuthShell({ title, description, footer, children }: AuthShellPro
               'Full technical audit in under a minute',
               'AI explains every finding in plain English',
               'Prioritised by impact against effort',
-              'One limited preview after signup; full audits from $5',
+              'One limited preview after signup; full audits available with scan credits or a plan',
             ].map((line) => (
               <div key={line} className="flex items-center gap-3">
                 <span className="flex size-5 items-center justify-center rounded-full bg-success/15">

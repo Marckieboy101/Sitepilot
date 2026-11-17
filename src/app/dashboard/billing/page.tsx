@@ -9,11 +9,13 @@ import { requireSession } from '@/features/auth/session';
 import { getEntitlements } from '@/features/billing/quota';
 import { paymentConfigured } from '@/features/billing/stripe';
 import { db } from '@/lib/db';
+import { serverEnv } from '@/lib/env';
 
 export const metadata: Metadata = { title: 'Billing' };
 
 export default async function BillingPage() {
   const session = await requireSession();
+  const currency = serverEnv().MOLLIE_CURRENCY;
 
   const [entitlements, organization, invoices] = await Promise.all([
     getEntitlements(session.organizationId),
@@ -52,6 +54,7 @@ export default async function BillingPage() {
           cancelAtPeriodEnd={entitlements.cancelAtPeriodEnd}
           currentPeriodEnd={entitlements.currentPeriodEnd}
           billingConfigured={paymentConfigured()}
+          currency={currency}
           freePreviewUsed={organization?.freePreviewUsed ?? false}
           scanCredits={organization?.scanCredits ?? 0}
           hasPurchasedScan={(organization?.paidScanPurchases ?? 0) > 0}

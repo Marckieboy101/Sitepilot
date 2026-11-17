@@ -92,9 +92,9 @@ export default async function AuditDetailPage({ params }: PageProps) {
               ))}
             </div>
             <div className="rounded-lg border border-border bg-muted/40 p-4">
-              <p className="text-sm font-medium">Unlock your first full audit for $5</p>
+              <p className="text-sm font-medium">Unlock a full audit with a scan credit</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Future audits are $8 each, or choose a plan for ongoing access.
+                Buy more scan credits anytime, or choose a plan for ongoing access.
               </p>
               <Button asChild variant="gradient" className="mt-4">
                 <Link href="/dashboard/billing">See scan and plan options</Link>

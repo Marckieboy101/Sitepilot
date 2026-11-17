@@ -11,6 +11,7 @@ import {
   Testimonials,
   TrustedBy,
 } from '@/components/marketing/sections';
+import { serverEnv } from '@/lib/env';
 
 export const metadata: Metadata = {
   title: 'GetTravik — Audit any website in 60 seconds',
@@ -19,14 +20,16 @@ export const metadata: Metadata = {
 };
 
 export default function LandingPage() {
+  const currency = serverEnv().MOLLIE_CURRENCY;
+
   return (
     <>
-      <Hero />
+      <Hero currency={currency} />
       <TrustedBy />
       <Features />
       <HowItWorks />
       <AiFeatures />
-      <Pricing />
+      <Pricing currency={currency} />
       <Testimonials />
       <Faq />
       <FinalCta />

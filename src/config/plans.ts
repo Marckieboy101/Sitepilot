@@ -77,8 +77,8 @@ export const PLANS: Record<Plan, PlanDefinition> = {
     bullets: [
       'One limited-statistics preview',
       'No full report or detailed findings',
-      'First full audit for $5',
-      'Further audits for $8 each or choose a plan',
+      'First full audit at the introductory price',
+      'Further audits available individually or with a plan',
     ],
   },
 

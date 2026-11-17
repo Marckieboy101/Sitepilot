@@ -70,6 +70,14 @@ const clientSchema = z.object({
   ),
 });
 
+export const mollieCurrencySchema = z.preprocess(
+  (value) => {
+    const normalized = normalizeEnvValue(typeof value === 'string' ? value : undefined);
+    return normalized?.toUpperCase();
+  },
+  z.string().regex(/^[A-Z]{3}$/, 'MOLLIE_CURRENCY must be a three-letter ISO currency code').default('USD'),
+);
+
 const serverSchema = z.object({
   NODE_ENV: z.preprocess(
     (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
@@ -108,10 +116,7 @@ const serverSchema = z.object({
 
   MOLLIE_API_KEY: emptyAsUndefined(),
   MOLLIE_WEBHOOK_SECRET: emptyAsUndefined(),
-  MOLLIE_CURRENCY: z.preprocess(
-    (value) => normalizeEnvValue(typeof value === 'string' ? value : undefined),
-    z.literal('USD').default('USD'),
-  ),
+  MOLLIE_CURRENCY: mollieCurrencySchema,
 
   STRIPE_SECRET_KEY: emptyAsUndefined(),
   STRIPE_WEBHOOK_SECRET: emptyAsUndefined(),

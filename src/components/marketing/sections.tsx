@@ -34,7 +34,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { PLANS, PLAN_ORDER, yearlySavingPercent } from '@/config/plans';
-import { STANDARD_SCAN_PRICE_CENTS } from '@/features/billing/scan-pricing';
+import {
+  FIRST_PAID_SCAN_PRICE_CENTS,
+  STANDARD_SCAN_PRICE_CENTS,
+} from '@/features/billing/scan-pricing';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
@@ -422,7 +425,7 @@ export function AiFeatures() {
 // Pricing
 // ---------------------------------------------------------------------------
 
-export function Pricing() {
+export function Pricing({ currency }: { currency: string }) {
   const [yearly, setYearly] = React.useState(false);
 
   return (
@@ -431,8 +434,8 @@ export function Pricing() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <SectionHeading
           eyebrow="Pricing"
-          title="One free preview. Full audits from $5."
-          description="Sign up for one limited-statistics preview. Your first full audit is $5; future audits are $8 each, or choose a plan."
+          title={`One free preview. Full audits from ${formatCurrency(FIRST_PAID_SCAN_PRICE_CENTS, currency)}.`}
+          description={`Sign up for one limited-statistics preview. Your first full audit is ${formatCurrency(FIRST_PAID_SCAN_PRICE_CENTS, currency)}; future audits are ${formatCurrency(STANDARD_SCAN_PRICE_CENTS, currency)} each, or choose a plan.`}
         />
 
         <motion.div
@@ -453,12 +456,12 @@ export function Pricing() {
             {
               id: 'single-scan',
               name: 'One-time scan',
-              tagline: 'Your first full audit is $5; each one after that is $8.',
+              tagline: `Your first full audit is ${formatCurrency(FIRST_PAID_SCAN_PRICE_CENTS, currency)}; each one after that is ${formatCurrency(STANDARD_SCAN_PRICE_CENTS, currency)}.`,
               price: STANDARD_SCAN_PRICE_CENTS,
               bullets: [
                 'One limited-statistics preview free after signup',
-                'First complete audit for $5',
-                '$8 for each complete audit after that',
+                `First complete audit for ${formatCurrency(FIRST_PAID_SCAN_PRICE_CENTS, currency)}`,
+                `${formatCurrency(STANDARD_SCAN_PRICE_CENTS, currency)} for each complete audit after that`,
                 'Actionable findings ranked by impact',
               ],
               highlighted: false,
@@ -507,7 +510,7 @@ export function Pricing() {
 
                   <div className="pt-5">
                     <span className="text-4xl font-semibold tracking-[-0.03em]">
-                      {item.id === 'single-scan' ? formatCurrency(item.price) : formatCurrency(item.price)}
+                      {formatCurrency(item.price, currency)}
                     </span>
                     {item.id !== 'single-scan' && (
                       <span className="ml-1.5 text-sm text-muted-foreground">
@@ -542,7 +545,7 @@ export function Pricing() {
         </div>
 
         <p className="mt-8 text-center text-sm text-muted-foreground">
-          All prices in USD. Plans grant access for the selected term and do not automatically renew.
+          All prices in {currency}. Plans grant access for the selected term and do not automatically renew.
         </p>
       </div>
     </section>

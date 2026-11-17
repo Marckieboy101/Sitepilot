@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/utils';
 
 import { AuroraBackground } from './aurora-background';
 
@@ -17,7 +18,7 @@ const rise = {
   }),
 };
 
-export function Hero() {
+export function Hero({ currency }: { currency: string }) {
   return (
     <section className="relative overflow-hidden pb-20 pt-32 sm:pb-28 sm:pt-40">
       <AuroraBackground />
@@ -76,7 +77,8 @@ export function Hero() {
             variants={rise}
             className="mt-4 text-sm text-muted-foreground"
           >
-            One limited preview after signup · First full audit $5 · Then $8 per audit or choose a plan
+            One limited preview after signup · First full audit {formatCurrency(500, currency)} · Then{' '}
+            {formatCurrency(800, currency)} per audit or choose a plan
           </motion.p>
         </div>
 

@@ -121,7 +121,7 @@ export function NewAuditDialog({
           <DialogDescription>
             {running
               ? 'This usually takes under a minute. Keep this window open.'
-              : 'Paste any public URL. Free accounts get one limited-statistics preview; full audits are $5 for the first paid scan, then $8 each, or included in a plan.'}
+              : 'Paste any public URL. Free accounts get one limited-statistics preview; full audits use a scan credit or are included in a plan.'}
           </DialogDescription>
         </DialogHeader>
 

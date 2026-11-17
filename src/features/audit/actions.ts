@@ -92,16 +92,19 @@ export async function startAuditAction(input: StartAuditInput): Promise<ActionRe
       if (!organization.freePreviewUsed) {
         previewReserved = await reserveFreePreview(session.organizationId);
         if (!previewReserved) {
-          throw errors.quotaExceeded('Your free preview is already being used. Full audits start at $5.', {
-            resource: 'freePreview',
-          });
+          throw errors.quotaExceeded(
+            'Your free preview is already being used. Buy a scan credit or choose a plan for a full audit.',
+            {
+              resource: 'freePreview',
+            },
+          );
         }
         previewOnly = true;
       } else {
         scanCreditConsumed = await consumeScanCredit(session.organizationId);
         if (!scanCreditConsumed) {
           throw errors.quotaExceeded(
-            'Your free preview has been used. Buy a full audit for $5, then $8 per audit, or choose a plan.',
+            'Your free preview has been used. Buy a scan credit for a full audit or choose a plan.',
             { resource: 'auditsRun', plan: entitlements.plan },
           );
         }
